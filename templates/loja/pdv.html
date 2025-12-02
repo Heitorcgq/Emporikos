@@ -1,0 +1,296 @@
+{% extends "core/base.html" %}
+
+{% block content %}
+<div class="row h-100">
+    <div class="col-md-8 d-flex flex-column gap-3">
+        
+        <div class="panel" style="position: relative; z-index: 1050;">
+            <label class="panel-label mb-2">Buscar Produto</label>
+            <div class="input-group input-group-lg position-relative">
+                <span class="input-group-text bg-primary text-white border-primary">
+                    <i class="bi bi-search"></i>
+                </span>
+                
+                <input type="text" id="input-busca" class="form-control border-primary" 
+                       placeholder="Código ou nome do produto..." 
+                       autocomplete="off" autofocus>
+                
+                <ul id="lista-sugestoes" class="list-group position-absolute w-100 shadow-lg" 
+                    style="top: 100%; left: 0; display: none; max-height: 300px; overflow-y: auto; border-top: none;">
+                    </ul>
+            </div>
+        </div>
+
+        <div class="panel flex-grow-1 d-flex flex-column p-0" style="overflow: hidden; min-height: 400px; z-index: 1;">
+            <div class="p-3 border-bottom d-flex justify-content-between align-items-center bg-light bg-opacity-50">
+                <span class="fw-bold text-primary"><i class="bi bi-cart3 me-2"></i>Cupom de Venda</span>
+                <span class="badge bg-primary rounded-pill" id="total-itens-badge">0 itens</span>
+            </div>
+            
+            <div class="table-responsive flex-grow-1">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light sticky-top">
+                        <tr>
+                            <th>#</th>
+                            <th>Produto</th>
+                            <th class="text-center">Qtd</th>
+                            <th class="text-end">Unitário</th>
+                            <th class="text-end">Total</th>
+                            <th class="text-center">Ação</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tabela-itens">
+                        </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-4 d-flex flex-column">
+        <div class="panel h-100 d-flex flex-column justify-content-between">
+            
+            <div class="text-end mb-4">
+                <small class="panel-label d-block">Total a Pagar</small>
+                <h1 class="display-4 fw-bold text-primary" id="visor-total">R$ 0,00</h1>
+            </div>
+
+            <div class="bg-light bg-opacity-75 p-3 rounded border mb-3">
+                <div class="d-flex justify-content-between text-secondary mb-2">
+                    <span>Subtotal</span>
+                    <span id="resumo-subtotal">R$ 0,00</span>
+                </div>
+                <div class="d-flex justify-content-between text-danger mb-2">
+                    <span>Desconto</span>
+                    <span>R$ 0,00</span>
+                </div>
+                <hr>
+                <div class="d-flex justify-content-between text-primary fw-bold fs-5">
+                    <span>Total Final</span>
+                    <span id="resumo-total">R$ 0,00</span>
+                </div>
+            </div>
+
+            <div class="d-grid gap-2">
+                <button class="btn btn-primary btn-lg py-3 shadow-sm" onclick="finalizarVenda()">
+                    <i class="bi bi-check-circle-fill me-2"></i> FINALIZAR (F2)
+                </button>
+                <button class="btn btn-outline-danger" onclick="limparCarrinho()">
+                    <i class="bi bi-trash me-2"></i> Cancelar
+                </button>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="modalSucesso" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg">
+            <div class="modal-body text-center p-5">
+                <div class="display-1 text-success mb-3"><i class="bi bi-check-circle-fill"></i></div>
+                <h3 class="fw-bold text-primary">Venda Realizada!</h3>
+                <p class="text-muted">Estoque atualizado.</p>
+                <button class="btn btn-primary mt-3 px-4 rounded-pill" data-bs-dismiss="modal" onclick="limparCarrinho()">Nova Venda</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    let carrinho = [];
+    let timeoutBusca = null;
+
+    const inputBusca = document.getElementById('input-busca');
+    const listaSugestoes = document.getElementById('lista-sugestoes');
+
+    // 1. Digitação (Mostra sugestões)
+    inputBusca.addEventListener('input', function() {
+        const termo = this.value.trim();
+        clearTimeout(timeoutBusca);
+        
+        if (termo.length < 1) { // Mudado para 1 letra (busca mais rápida)
+            listaSugestoes.style.display = 'none';
+            return;
+        }
+
+        timeoutBusca = setTimeout(() => {
+            carregarSugestoes(termo);
+        }, 300);
+    });
+
+    // 2. Enter (Lógica Inteligente)
+    inputBusca.addEventListener('keypress', async function (e) {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            const termo = this.value.trim();
+            if(!termo) return;
+
+            const response = await fetch(`/api/buscar-produto/?termo=${termo}`);
+            const dados = await response.json();
+
+            if (dados.length === 0) {
+                alert("Produto não encontrado!");
+                listaSugestoes.style.display = 'none';
+                return;
+            }
+
+            // --- AQUI ESTÁ A MÁGICA PARA O MODO MANUAL ---
+            // Tenta achar um produto cujo código seja EXATAMENTE o que você digitou
+            // Ex: Você digitou "10". A busca trouxe "10", "101", "102".
+            // O sistema vai pegar o "10" e jogar no carrinho.
+            const produtoExato = dados.find(p => p.codigo.toLowerCase() === termo.toLowerCase());
+
+            if (produtoExato) {
+                adicionarAoCarrinho(produtoExato);
+                inputBusca.value = '';
+                listaSugestoes.style.display = 'none';
+            } 
+            else if (dados.length === 1) {
+                // Se só tem um resultado (mesmo que o código não seja igual), adiciona
+                adicionarAoCarrinho(dados[0]);
+                inputBusca.value = '';
+                listaSugestoes.style.display = 'none';
+            } 
+            else {
+                // Se tem vários e nenhum é exato, mostra a lista para você clicar
+                desenharLista(dados);
+            }
+        }
+    });
+
+    async function carregarSugestoes(termo) {
+        const response = await fetch(`/api/buscar-produto/?termo=${termo}`);
+        const dados = await response.json();
+        desenharLista(dados);
+    }
+
+    function desenharLista(produtos) {
+        listaSugestoes.innerHTML = '';
+        if (produtos.length === 0) {
+            listaSugestoes.style.display = 'none';
+            return;
+        }
+
+        produtos.forEach(p => {
+            const li = document.createElement('li');
+            li.className = 'list-group-item list-group-item-action d-flex justify-content-between align-items-center cursor-pointer';
+            li.style.cursor = 'pointer';
+            
+            // Destaque visual se o código começar com o que foi digitado
+            li.innerHTML = `
+                <div>
+                    <strong class="text-primary">${p.nome}</strong><br>
+                    <small class="text-muted"><i class="bi bi-tag-fill"></i> ${p.codigo}</small>
+                </div>
+                <span class="fw-bold fs-5">R$ ${p.preco.toFixed(2)}</span>
+            `;
+
+            li.onclick = () => {
+                adicionarAoCarrinho(p);
+                inputBusca.value = '';
+                listaSugestoes.style.display = 'none';
+                inputBusca.focus();
+            };
+            listaSugestoes.appendChild(li);
+        });
+        listaSugestoes.style.display = 'block';
+    }
+
+    // Fecha lista ao clicar fora
+    document.addEventListener('click', function(e) {
+        if (!inputBusca.contains(e.target) && !listaSugestoes.contains(e.target)) {
+            listaSugestoes.style.display = 'none';
+        }
+    });
+
+    // --- CARRINHO ---
+    function adicionarAoCarrinho(produto) {
+        const existente = carrinho.find(item => item.id === produto.id);
+        if (existente) {
+            existente.quantidade += 1;
+        } else {
+            carrinho.push({ ...produto, quantidade: 1 });
+        }
+        renderizarTabela();
+    }
+
+    function renderizarTabela() {
+        const tbody = document.getElementById('tabela-itens');
+        tbody.innerHTML = '';
+        let totalGeral = 0;
+        let totalItens = 0;
+
+        carrinho.forEach((item, index) => {
+            const totalItem = item.preco * item.quantidade;
+            totalGeral += totalItem;
+            totalItens += item.quantidade;
+
+            const tr = `
+                <tr>
+                    <td>${index + 1}</td>
+                    <td>
+                        <span class="fw-semibold text-primary">${item.nome}</span> <br> 
+                        <small class="text-secondary">${item.codigo}</small>
+                    </td>
+                    <td class="text-center">
+                        <input type="number" min="1" class="form-control form-control-sm text-center d-inline-block border-secondary" style="width: 60px" value="${item.quantidade}" onchange="atualizarQtd(${index}, this.value)">
+                    </td>
+                    <td class="text-end text-muted">R$ ${item.preco.toFixed(2)}</td>
+                    <td class="text-end fw-bold text-primary">R$ ${totalItem.toFixed(2)}</td>
+                    <td class="text-center">
+                        <button class="btn btn-sm btn-link text-danger" onclick="removerItem(${index})"><i class="bi bi-trash"></i></button>
+                    </td>
+                </tr>
+            `;
+            tbody.innerHTML += tr;
+        });
+
+        const totalFormatado = totalGeral.toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'});
+        document.getElementById('visor-total').innerText = totalFormatado;
+        document.getElementById('resumo-subtotal').innerText = totalFormatado;
+        document.getElementById('resumo-total').innerText = totalFormatado;
+        document.getElementById('total-itens-badge').innerText = `${totalItens} itens`;
+    }
+
+    function atualizarQtd(index, novaQtd) {
+        if (novaQtd < 1) return;
+        carrinho[index].quantidade = parseInt(novaQtd);
+        renderizarTabela();
+    }
+
+    function removerItem(index) {
+        carrinho.splice(index, 1);
+        renderizarTabela();
+    }
+
+    function limparCarrinho() {
+        carrinho = [];
+        renderizarTabela();
+        document.getElementById('input-busca').focus();
+    }
+
+    async function finalizarVenda() {
+        if (carrinho.length === 0) {
+            alert("Carrinho vazio!");
+            return;
+        }
+        const response = await fetch('/api/salvar-venda/', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ carrinho: carrinho })
+        });
+        const resultado = await response.json();
+        if (resultado.status === 'sucesso') {
+            new bootstrap.Modal(document.getElementById('modalSucesso')).show();
+        } else {
+            alert("Erro ao salvar venda.");
+        }
+    }
+    
+    document.addEventListener('keydown', function(e) {
+        if(e.key === 'F2') finalizarVenda();
+    });
+</script>
+{% endblock %}

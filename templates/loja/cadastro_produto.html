@@ -1,0 +1,87 @@
+{% extends "core/base.html" %}
+
+{% block content %}
+<div class="container" style="max-width: 900px;">
+    
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2 class="text-primary fw-bold"><i class="bi bi-box-seam-fill me-2"></i>Novo Produto</h2>
+        <a href="{% url 'frente_caixa' %}" class="btn btn-outline-primary">
+            <i class="bi bi-arrow-left"></i> Voltar ao Caixa
+        </a>
+    </div>
+
+    <div class="panel">
+        <form method="post">
+            {% csrf_token %}
+            
+            {% if form.errors %}
+            <div class="alert alert-danger">
+                Corrija os erros abaixo antes de salvar.
+            </div>
+            {% endif %}
+
+            <div class="row g-4">
+                <div class="col-md-12">
+                    <label class="form-label fw-bold text-secondary">Nome do Produto *</label>
+                    {{ form.nome }}
+                    <div class="text-danger small">{{ form.nome.errors }}</div>
+                </div>
+
+                <div class="col-md-6">
+                    <label class="form-label fw-bold text-secondary">Categoria</label>
+                    {{ form.categoria }}
+                </div>
+
+                <div class="col-md-6">
+                    <label class="form-label fw-bold text-secondary">Código / SKU</label>
+                    <div class="input-group">
+                        <span class="input-group-text bg-light border"><i class="bi bi-tag-fill"></i></span>
+                        
+                        <input type="text" 
+                            name="codigo" 
+                            id="id_codigo"
+                            class="form-control" 
+                            placeholder="Ex: 1234 ou SKU-01"
+                            value="{{ form.codigo.value|default_if_none:'' }}"
+                            maxlength="50">
+                    </div>
+                    <div class="text-danger small">{{ form.codigo.errors }}</div>
+                    <div class="form-text small">Crie um código para identificar este item.</div>
+                </div>
+
+                <div class="col-md-4">
+                    <label class="form-label fw-bold text-secondary">Preço de Custo (R$)</label>
+                    <div class="input-group">
+                        <span class="input-group-text">R$</span>
+                        {{ form.preco_compra }}
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label fw-bold text-secondary text-primary">Preço de Venda (R$)</label>
+                    <div class="input-group">
+                        <span class="input-group-text bg-primary text-white border-primary">R$</span>
+                        {{ form.preco_venda }}
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label fw-bold text-secondary">Estoque Inicial</label>
+                    {{ form.estoque_atual }}
+                </div>
+
+                <div class="col-12">
+                    <label class="form-label fw-bold text-secondary">Detalhes Adicionais</label>
+                    {{ form.detalhes }}
+                </div>
+            </div>
+
+            <hr class="my-4 text-muted">
+
+            <div class="d-grid">
+                <button type="submit" class="btn btn-primary btn-lg shadow-sm">
+                    <i class="bi bi-check-lg me-2"></i> Salvar Produto
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
