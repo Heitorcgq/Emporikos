@@ -20,12 +20,31 @@ class Produto(models.Model):
         return f"{self.nome} - {self.detalhes}"
     
 class Venda(models.Model):
+    FORMA_PAGAMENTO_CHOICES = [
+        ('DIN', 'Dinheiro'),
+        ('CRE', 'Cartão de Crédito'),
+        ('DEB', 'Cartão de Débito'),
+        ('PIX', 'Pix'),
+    ]
+
+    STATUS_CHOICES = [
+        ('P', 'Pendente'),
+        ('C', 'Concluído'),
+        ('X', 'Cancelado'),
+    ]
+
     vendedor = models.ForeignKey(User, on_delete=models.PROTECT)
     data_venda = models.DateField(auto_now_add=True)
     valor_total = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    desconto = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    acrescimo = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    valor_final = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+
+    forma_pagamento = models.CharField(max_length=3, choices=FORMA_PAGAMENTO_CHOICES, default='DIN')
+    status = models.CharField(max_length=1, choices=STATUS_CHOICES, default='P')
 
     def __str__(self):
-        return f"Venda #{self.id} - {self.data_venda.strftime('%d/%m/%y')}"
+        return f"Venda #{self.id} - {self.get_status_display()}"
     
 class ItensVenda(models.Model):
     venda = models.ForeignKey(Venda, on_delete=models.CASCADE)

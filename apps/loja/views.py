@@ -1,5 +1,5 @@
 import json
-from django.shortcuts import render, redirect
+from django.shortcuts import render, redirect, get_object_or_404
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.contrib.auth.decorators import login_required
@@ -48,50 +48,92 @@ def buscar_produto(request):
     return JsonResponse(dados, safe=False)
 
 @csrf_exempt
-def salvar_venda(request):
+def iniciar_venda(request):
+    """
+    ETAPA 1: Recebe os itens do PDV, cria a venda PENDENTE e retorna o ID.
+    NÃO baixa estoque aqui ainda.
+    """
     if request.method == 'POST':
         dados = json.loads(request.body)
         carrinho = dados.get('carrinho')
-
-        # 1. Cria a venda
+        
         usuario = request.user if request.user.is_authenticated else None
+        
+        # Cria venda PENDENTE
         venda = Venda.objects.create(
             vendedor=usuario,
-            valor_total=0
+            status='P', # Pendente
+            valor_total=0,
+            valor_final=0
         )
-
-        total_venda = 0
         
-        # 2. Processa cada item do carrinho
+        total_itens = 0
+        
         for item in carrinho:
-            produto_id = item['id']
+            produto = Produto.objects.get(id=item['id'])
             quantidade = int(item['quantidade'])
+            preco = float(produto.preco_venda)
             
-            produto = Produto.objects.get(id=produto_id)
-            preco_momento = produto.preco_venda
-            
-            # Cria o item da venda
             ItensVenda.objects.create(
                 venda=venda,
                 produto=produto,
                 quantidade=quantidade,
-                preco_unitario=preco_momento,
-                subtotal=quantidade * preco_momento
+                preco_unitario=preco,
+                subtotal=quantidade * preco
             )
-            
-            # Atualiza total geral
-            total_venda += (quantidade * preco_momento)
-            
-            # 3. Baixa o Estoque
-            produto.estoque_atual -= quantidade
-            produto.save()
+            total_itens += (quantidade * preco)
         
-        # Atualiza o valor final da venda
-        venda.valor_total = total_venda
+        venda.valor_total = total_itens
+        venda.valor_final = total_itens # Inicialmente é igual, sem desconto
         venda.save()
         
+        # Retorna o ID para o Javascript redirecionar
         return JsonResponse({'status': 'sucesso', 'venda_id': venda.id})
+        
+    return JsonResponse({'status': 'erro'}, status=400)
+
+@login_required
+def checkout(request, venda_id):
+    """
+    ETAPA 2: Renderiza a tela de pagamento
+    """
+    venda = get_object_or_404(Venda, id=venda_id)
     
+    # Se já foi concluída, não deixa pagar de novo
+    if venda.status == 'C':
+        return redirect('frente_caixa')
+        
+    return render(request, 'loja/checkout.html', {'venda': venda})
+
+@csrf_exempt
+def concluir_venda(request, venda_id):
+    """
+    ETAPA 3: Recebe os dados de pagamento, BAIXA O ESTOQUE e finaliza.
+    """
+    if request.method == 'POST':
+        venda = get_object_or_404(Venda, id=venda_id)
+        
+        if venda.status == 'C':
+            return JsonResponse({'status': 'erro', 'mensagem': 'Venda já concluída'})
+
+        dados = json.loads(request.body)
+        
+        # Atualiza valores
+        venda.desconto = float(dados.get('desconto', 0))
+        venda.acrescimo = float(dados.get('acrescimo', 0))
+        venda.valor_final = float(dados.get('valor_final', venda.valor_total))
+        venda.forma_pagamento = dados.get('forma_pagamento', 'DIN')
+        venda.status = 'C' # CONCLUÍDA
+        venda.save()
+        
+        # AGORA SIM: Baixa o estoque
+        for item in venda.itensvenda_set.all():
+            produto = item.produto
+            produto.estoque_atual -= item.quantidade
+            produto.save()
+            
+        return JsonResponse({'status': 'sucesso'})
+        
     return JsonResponse({'status': 'erro'}, status=400)
 
 @login_required
