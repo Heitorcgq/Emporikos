@@ -4,8 +4,8 @@ from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.contrib.auth.decorators import login_required
 from django.db.models import Sum
-from .models import Produto, Venda, ItensVenda
-from .forms import ProdutoForm
+from .models import Produto, Venda, ItensVenda, Categoria
+from .forms import ProdutoForm, CategoriaForm
 from datetime import datetime, timedelta
 from django.utils import timezone
 
@@ -164,3 +164,49 @@ def relatorio_vendas(request):
     }
     
     return render(request, 'loja/relatorio_vendas.html', context)
+
+@login_required
+def cadastro_categoria(request):
+    if request.method == 'POST':
+        form = CategoriaForm(request.POST)
+        if form.is_valid():
+            form.save()
+            return redirect('cadastro_categoria')
+    else:
+        form = CategoriaForm
+
+    categorias_existentes = Categoria.objects.all().order_by('nome')
+
+    return render(request, 'loja/cadastro_categoria.html', {
+        'form': form, 
+        'categorias': categorias_existentes # Passamos a lista para o HTML
+    })
+
+
+@login_required
+def relatorio_estoque(request):
+    produtos = Produto.objects.all().order_by('nome')
+    categorias = Categoria.objects.all().order_by('nome')
+
+    categoria_id = request.GET.get('categoria')
+    if categoria_id:
+        produtos = produtos.filter(categoria_id=categoria_id)
+    
+    baixo_estoque = request.GET.get('baixo')
+    if baixo_estoque:
+        produtos = produtos.filter(estoque_atual__lte=10)
+
+    valor_total_estoque = 0
+    for p in produtos:
+        valor_total_estoque += (p.preco_compra * p.estoque_atual)
+
+    context = {
+        'produtos': produtos,
+        'categorias': categorias,
+        'valor_total_estoque': valor_total_estoque,
+        'total_itens': produtos.count(),
+        'filtro_categoria': int(categoria_id) if categoria_id else None,
+        'filtro_baixo': baixo_estoque
+    }
+    
+    return render(request, 'loja/relatorio_estoque.html', context)

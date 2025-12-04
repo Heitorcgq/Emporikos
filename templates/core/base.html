@@ -25,7 +25,7 @@
 
       body {
         /* Configuração da Imagem de Fundo */
-        background: url('{% static "img/paisagem.jpg" %}') no-repeat center center fixed;
+        background: url('{% static "img/paisagem2.jpg" %}') no-repeat center center fixed;
         background-size: cover; /* Faz a imagem cobrir toda a tela */
         
         color: var(--text-primary);
@@ -112,6 +112,16 @@
             <li class="nav-item">
                 <a class="nav-link" href="{% url 'cadastro_produto' %}">
                     <i class="bi bi-plus-circle me-1"></i> Novo Produto
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="{% url 'cadastro_categoria' %}">
+                    <i class="bi bi-tags me-1"></i> Categorias
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="{% url 'relatorio_estoque' %}">
+                    <i class="bi bi-box-seam me-1"></i> Estoque
                 </a>
             </li>
             <li class="nav-item">

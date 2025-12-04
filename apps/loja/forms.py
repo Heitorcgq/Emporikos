@@ -1,5 +1,5 @@
 from django import forms
-from .models import Produto
+from .models import Produto, Categoria
 
 class ProdutoForm(forms.ModelForm):
     class Meta:
@@ -15,4 +15,14 @@ class ProdutoForm(forms.ModelForm):
             'preco_venda': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01'}),
             'estoque_atual': forms.NumberInput(attrs={'class': 'form-control'}),
             'detalhes': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Cor, Tamanho, Marca...'}),
+        }
+
+
+class CategoriaForm(forms.ModelForm):
+    class Meta:
+        model = Categoria
+        fields = ['nome']
+        
+        widgets = {
+            'nome': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Ex: Botões, Elásticos...'}),
         }

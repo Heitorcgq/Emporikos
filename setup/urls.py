@@ -8,7 +8,8 @@ urlpatterns = [
     path('', views.frente_caixa, name='frente_caixa'),
     path('produtos/novo/', views.cadastro_produto, name='cadastro_produto'),
     path('relatorios/vendas/', views.relatorio_vendas, name='relatorio_vendas'),
-
+    path('categorias/nova/', views.cadastro_categoria, name='cadastro_categoria'),
+    path('relatorios/estoque/', views.relatorio_estoque, name='relatorio_estoque'),
     
     # Rotas "invisíveis" que o JavaScript vai chamar
     path('api/buscar-produto/', views.buscar_produto, name='buscar_produto'),

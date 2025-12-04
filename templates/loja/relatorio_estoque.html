@@ -1,0 +1,120 @@
+{% extends "core/base.html" %}
+
+{% block content %}
+<div class="container">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2 class="text-primary fw-bold"><i class="bi bi-box-seam me-2"></i>Controle de Estoque</h2>
+        <div>
+            <a href="{% url 'cadastro_produto' %}" class="btn btn-primary w-10">
+                <i class="bi bi-plus-lg"></i> Novo Produto
+            </a>
+            <a href="{% url 'frente_caixa' %}" class="btn btn-primary w-10">
+                <i class="bi bi-arrow-left"></i> Voltar
+            </a>
+        </div>
+    </div>
+
+    <div class="panel mb-4 p-3">
+        <form method="get" class="row g-3 align-items-center">
+            
+            <div class="col-md-4">
+                <label class="form-label small fw-bold text-secondary">Filtrar por Categoria</label>
+                <select name="categoria" class="form-select" onchange="this.form.submit()">
+                    <option value="">Todas as Categorias</option>
+                    {% for cat in categorias %}
+                    <option value="{{ cat.id }}" {% if filtro_categoria == cat.id %}selected{% endif %}>
+                        {{ cat.nome }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="col-md-4 pt-4">
+                <div class="form-check form-switch">
+                    <input class="form-check-input" type="checkbox" name="baixo" value="1" id="checkBaixo" 
+                           {% if filtro_baixo %}checked{% endif %} onchange="this.form.submit()">
+                    <label class="form-check-label fw-bold text-warning" for="checkBaixo">
+                        <i class="bi bi-exclamation-triangle-fill me-1"></i> Apenas Estoque Baixo
+                    </label>
+                </div>
+            </div>
+
+            {% if filtro_categoria or filtro_baixo %}
+            <div class="col-md-4 text-end pt-3">
+                <a href="{% url 'relatorio_estoque' %}" class="btn btn-sm btn-outline-secondary">
+                    <i class="bi bi-x-lg"></i> Limpar Filtros
+                </a>
+            </div>
+            {% endif %}
+        </form>
+    </div>
+
+    <div class="row g-3 mb-4">
+        <div class="col-md-6">
+            <div class="panel d-flex align-items-center justify-content-between p-3">
+                <div>
+                    <small class="text-secondary fw-bold text-uppercase">Itens Listados</small>
+                    <div class="h3 mb-0 text-primary fw-bold">{{ total_itens }}</div>
+                </div>
+                <div class="fs-1 text-primary opacity-25"><i class="bi bi-list-check"></i></div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="panel d-flex align-items-center justify-content-between p-3">
+                <div>
+                    <small class="text-secondary fw-bold text-uppercase">Valor em Estoque</small>
+                    <div class="h3 mb-0 text-success fw-bold">R$ {{ valor_total_estoque|floatformat:2 }}</div>
+                </div>
+                <div class="fs-1 text-success opacity-25"><i class="bi bi-cash-stack"></i></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="panel p-0 overflow-hidden">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th class="ps-4">Código</th>
+                        <th>Produto</th>
+                        <th>Categoria</th>
+                        <th class="text-end">Custo</th>
+                        <th class="text-end">Venda</th>
+                        <th class="text-center pe-4">Estoque Atual</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for p in produtos %}
+                    <tr class="{% if p.estoque_atual == 0 %}table-danger bg-opacity-10{% elif p.estoque_atual <= 5 %}table-warning bg-opacity-10{% endif %}">
+                        <td class="ps-4 text-secondary"><small>{{ p.codigo|default:"-" }}</small></td>
+                        <td>
+                            <div class="fw-bold text-primary">{{ p.nome }}</div>
+                            <small class="text-muted">{{ p.detalhes }}</small>
+                        </td>
+                        <td><span class="badge bg-light text-secondary border">{{ p.categoria.nome|default:"Geral" }}</span></td>
+                        <td class="text-end text-muted">R$ {{ p.preco_compra|floatformat:2 }}</td>
+                        <td class="text-end fw-bold text-primary">R$ {{ p.preco_venda|floatformat:2 }}</td>
+                        <td class="text-center pe-4">
+                            {% if p.estoque_atual == 0 %}
+                                <span class="badge bg-danger">ESGOTADO</span>
+                            {% elif p.estoque_atual <= 5 %}
+                                <span class="badge bg-warning text-dark">{{ p.estoque_atual }} (Baixo)</span>
+                            {% else %}
+                                <span class="fw-bold fs-5 text-secondary">{{ p.estoque_atual }}</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="6" class="text-center py-5 text-muted">
+                            <i class="bi bi-box h1 d-block mb-2"></i>
+                            Nenhum produto encontrado com estes filtros.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
