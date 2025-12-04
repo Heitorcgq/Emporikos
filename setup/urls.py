@@ -1,9 +1,12 @@
 from django.contrib import admin
 from django.urls import path
 from apps.loja import views
+from django.contrib.auth import views as auth_views
 
 urlpatterns = [
     path('admin/', admin.site.urls),
+    path('login/', auth_views.LoginView.as_view(), name='login'),
+    path('logout/', auth_views.LogoutView.as_view(), name='logout'),
     
     path('', views.frente_caixa, name='frente_caixa'),
     path('produtos/novo/', views.cadastro_produto, name='cadastro_produto'),
