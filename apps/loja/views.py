@@ -195,7 +195,7 @@ def relatorio_estoque(request):
     baixo_estoque = request.GET.get('baixo')
     if baixo_estoque:
         produtos = produtos.filter(estoque_atual__lte=10)
-
+    
     valor_total_estoque = 0
     for p in produtos:
         valor_total_estoque += (p.preco_compra * p.estoque_atual)
@@ -210,3 +210,27 @@ def relatorio_estoque(request):
     }
     
     return render(request, 'loja/relatorio_estoque.html', context)
+
+
+@login_required
+def editar_produto(request, produto_id):
+    # Busca o produto ou dá erro 404 se não existir
+    produto = get_object_or_404(Produto, id=produto_id)
+    
+    if request.method == 'POST':
+        # Carrega o formulário COM os dados do produto (instance=produto)
+        form = ProdutoForm(request.POST, instance=produto)
+        if form.is_valid():
+            form.save()
+            return redirect('relatorio_estoque') # Volta para a lista de estoque
+    else:
+        # Preenche o formulário com os dados atuais
+        form = ProdutoForm(instance=produto)
+    
+    return render(request, 'loja/editar_produto.html', {'form': form, 'produto': produto})
+
+@login_required
+def excluir_produto(request, produto_id):
+    produto = get_object_or_404(Produto, id=produto_id)
+    produto.delete()
+    return redirect('relatorio_estoque')

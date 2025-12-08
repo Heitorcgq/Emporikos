@@ -12,50 +12,60 @@
     
     <style>
       :root {
-        /* PALETA AZUL E BRANCO */
-        --surface-color: rgba(255, 255, 255, 0.92); /* Fundo dos cards branco semi-transparente */
-        --border-color: #cfe2ff; /* Borda azul bem clarinha */
+        /* --- PALETA CLEAN (Fundo Claro) --- */
+        --bg-body: #f4f6f8;       /* Fundo cinza bem clarinho para o site */
+        --surface-color: #ffffff; /* Fundo branco puro para os cards */
+        --border-color: #e0e0e0;  /* Bordas sutis */
         
-        --text-primary: #0a2540; /* Azul marinho escuro para texto principal */
-        --text-secondary: #556b8d; /* Azul acinzentado para textos secundários */
+        --text-primary: #1a1a1a;  /* Preto suave para textos principais */
+        --text-secondary: #666666; /* Cinza para textos secundários */
         
-        --accent-color: #0d6efd; /* Azul vibrante para destaques (botões, ícones) */
-        --accent-hover: #0b5ed7;
+        --accent-color: #0d6efd;  /* Azul padrão para botões e destaques */
       }
 
       body {
-        /* Configuração da Imagem de Fundo */
-        background: url('{% static "img/paisagem2.jpg" %}') no-repeat center center fixed;
-        background-size: cover; /* Faz a imagem cobrir toda a tela */
-        
+        /* Removemos a imagem de fundo e deixamos uma cor sólida suave */
+        background-color: var(--bg-body);
         color: var(--text-primary);
         font-family: "Inter", sans-serif;
         min-height: 100vh;
       }
 
-      /* Navbar com gradiente azul */
+      /* Navbar Clean (Branca com linha cinza) */
       .navbar {
-        background: linear-gradient(90deg, #0a2540 0%, #1a3c61 100%);
-        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
-        border-bottom: 1px solid rgba(255,255,255,0.1);
+        background-color: #ffffff;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.05); /* Sombra muito leve */
+        border-bottom: 1px solid var(--border-color);
       }
-      .navbar-brand { font-weight: 700; letter-spacing: 0.5px; color: #fff !important; }
-      .nav-link { color: rgba(255,255,255,0.85) !important; }
-      .nav-link:hover, .nav-link.active { color: #fff !important; }
+      /* Logo Azul */
+      .navbar-brand { 
+          font-weight: 700; 
+          letter-spacing: 0.5px; 
+          color: var(--text-primary) !important; 
+      }
+      /* Links do Menu (Cinza escuro, ficam azul ao passar o mouse) */
+      .nav-link { 
+          color: var(--text-secondary) !important; 
+          font-weight: 500;
+      }
+      .nav-link:hover, .nav-link.active { 
+          color: var(--accent-color) !important; 
+      }
 
       /* Estilos Gerais */
       .text-accent { color: var(--accent-color) !important; }
       main { padding: 30px 20px; }
       
-      /* Paineis (Cards) - Agora brancos e limpos */
+      /* Paineis (Cards) - Brancos com sombra suave */
       .panel {
         background: var(--surface-color);
         border: 1px solid var(--border-color);
-        border-radius: 12px;
+        border-radius: 8px; /* Cantos arredondados padrão */
         padding: 20px;
-        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.05); /* Sombra suave */
-        backdrop-filter: blur(5px); /* Efeito de vidro fosco */
+        /* Sombra leve para destacar do fundo cinza */
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04); 
       }
+      
       .panel-label {
         font-size: 13px;
         color: var(--text-secondary);
@@ -64,22 +74,29 @@
         letter-spacing: 0.8px;
         margin-bottom: 8px;
       }
+      
       .panel-value {
         font-size: 32px;
         font-weight: 700;
-        color: var(--text-primary); /* Azul escuro */
+        color: var(--text-primary);
       }
       
-      /* Ajustes para tabelas no tema claro */
-      .table { --bs-table-bg: transparent; color: var(--text-primary); }
+      /* Tabela Clean */
+      .table { 
+          --bs-table-bg: transparent; 
+          color: var(--text-primary); 
+      }
       .table thead th { 
           color: var(--text-secondary); 
-          font-weight: 600; 
+          font-weight: 600;
+          background-color: #f8f9fa; /* Cabeçalho levemente cinza */
           border-bottom: 2px solid var(--border-color);
       }
-      .table td { border-bottom: 1px solid var(--border-color); }
+      .table td { 
+          border-bottom: 1px solid var(--border-color); 
+      }
       
-      /* Ajustes de inputs para o tema claro */
+      /* Inputs Padrão (Fundo branco) */
       .form-control, .form-select {
         background-color: #fff;
         border: 1px solid #ced4da;
@@ -87,7 +104,12 @@
       }
       .form-control:focus {
         border-color: var(--accent-color);
-        box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+        box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.15);
+      }
+      
+      /* Ajuste para inputs desabilitados ou readonly */
+      .form-control:disabled, .form-control[readonly] {
+          background-color: #e9ecef;
       }
     </style>
   </head>
@@ -95,7 +117,7 @@
     <nav class="navbar navbar-expand-lg">
       <div class="container-fluid">
         <a class="navbar-brand" href="/">
-          Emporikos
+          <i class="bi bi-box-seam-fill text-primary me-2"></i>Emporikos
         </a>
         
         <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarMain">
@@ -131,11 +153,11 @@
                       </a>
                   </li>
 
-                  <li class="nav-item mx-2 text-white-50">|</li>
+                  <li class="nav-item mx-2 text-secondary">|</li>
 
                   <li class="nav-item dropdown">
-                      <a class="nav-link dropdown-toggle fw-bold text-white" href="#" role="button" data-bs-toggle="dropdown">
-                          <i class="bi bi-person-circle me-1"></i> {{ user.username|title }}
+                      <a class="nav-link dropdown-toggle fw-bold text-dark" href="#" role="button" data-bs-toggle="dropdown">
+                          <i class="bi bi-person-circle me-1 text-secondary"></i> {{ user.username|title }}
                       </a>
                       <ul class="dropdown-menu dropdown-menu-end shadow border-0">
                           <li>

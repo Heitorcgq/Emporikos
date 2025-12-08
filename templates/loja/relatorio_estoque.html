@@ -81,6 +81,8 @@
                         <th class="text-end">Custo</th>
                         <th class="text-end">Venda</th>
                         <th class="text-center pe-4">Estoque Atual</th>
+                        <th class="text-center pe-4">Estoque Atual</th>
+                        <th class="text-end pe-4">Ações</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -95,13 +97,21 @@
                         <td class="text-end text-muted">R$ {{ p.preco_compra|floatformat:2 }}</td>
                         <td class="text-end fw-bold text-primary">R$ {{ p.preco_venda|floatformat:2 }}</td>
                         <td class="text-center pe-4">
-                            {% if p.estoque_atual == 0 %}
+                            {% if p.estoque_atual <= 0 %}
                                 <span class="badge bg-danger">ESGOTADO</span>
-                            {% elif p.estoque_atual <= 5 %}
+                            {% elif p.estoque_atual <= 10 %}
                                 <span class="badge bg-warning text-dark">{{ p.estoque_atual }} (Baixo)</span>
                             {% else %}
                                 <span class="fw-bold fs-5 text-secondary">{{ p.estoque_atual }}</span>
                             {% endif %}
+                            <td class="text-center pe-4">
+                                </td>
+
+                            <td class="text-end pe-4">
+                                <a href="{% url 'editar_produto' p.id %}" class="btn btn-sm btn-outline-primary" title="Editar">
+                                    <i class="bi bi-pencil"></i>
+                                </a>
+
                         </td>
                     </tr>
                     {% empty %}
