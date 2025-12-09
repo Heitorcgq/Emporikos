@@ -49,21 +49,53 @@
         </div>
 
         <div class="col-md-5">
-            <div class="panel h-100 bg-primary bg-opacity-10 border-primary d-flex flex-column justify-content-between">
-                <div>
-                    <h5 class="panel-label text-primary">Totalização</h5>
-                    <hr class="border-primary opacity-25">
-                    <div class="d-flex justify-content-between mb-2"><span class="text-secondary">Subtotal</span><span class="fw-bold">R$ <span id="lbl-subtotal">{{ venda.valor_total|stringformat:".2f" }}</span></span></div>
-                    <div class="d-flex justify-content-between mb-2 text-danger"><span>Desconto</span><span>- R$ <span id="lbl-desconto">0.00</span></span></div>
-                    <div class="d-flex justify-content-between mb-4 text-success"><span>Acréscimo</span><span>+ R$ <span id="lbl-acrescimo">0.00</span></span></div>
-                    <hr class="border-primary opacity-50">
-                    <div class="text-end"><small class="text-primary text-uppercase fw-bold">Valor Final</small><h1 class="display-4 fw-bold text-primary mb-0">R$ <span id="lbl-total">{{ venda.valor_total|stringformat:".2f" }}</span></h1></div>
+    <div class="panel h-100 bg-white border shadow-sm p-4 d-flex flex-column justify-content-between">
+        <div>
+            <h5 class="panel-label text-secondary mb-3">Resumo Financeiro</h5>
+            
+            <div class="d-flex justify-content-between mb-2 text-secondary">
+                <span>Subtotal</span>
+                <span class="fw-bold">R$ <span id="lbl-subtotal">{{ venda.valor_total|stringformat:".2f" }}</span></span>
+            </div>
+            <div class="d-flex justify-content-between mb-2 text-danger">
+                <span>Desconto</span>
+                <span>- R$ <span id="lbl-desconto">0.00</span></span>
+            </div>
+            <div class="d-flex justify-content-between mb-4 text-success">
+                <span>Acréscimo</span>
+                <span>+ R$ <span id="lbl-acrescimo">0.00</span></span>
+            </div>
+            
+            <hr class="border-secondary opacity-25">
+            
+            <div class="text-end mb-4">
+                <small class="text-secondary text-uppercase fw-bold" style="font-size: 0.75rem;">Total a Pagar</small>
+                <h1 class="display-4 fw-bold text-dark mb-0">R$ <span id="lbl-total">{{ venda.valor_total|stringformat:".2f" }}</span></h1>
+            </div>
+
+            <div class="bg-light p-3 rounded border mb-3">
+                <label class="form-label fw-bold text-secondary small text-uppercase">Valor Recebido (R$)</label>
+                <div class="input-group input-group-lg mb-3">
+                    <span class="input-group-text bg-white text-success border"><i class="bi bi-cash-stack"></i></span>
+                    <input type="number" id="valor_recebido" class="form-control border-success fw-bold text-success" 
+                           placeholder="0,00" step="0.01" oninput="calcularTroco()">
                 </div>
-                <div class="d-grid gap-2 mt-4">
-                    <button class="btn btn-primary btn-lg py-3 shadow" onclick="confirmarVenda()"><i class="bi bi-check-lg me-2"></i> CONFIRMAR PAGAMENTO</button>
-                    <a href="{% url 'frente_caixa' %}" class="btn btn-outline-danger border-0">Cancelar</a>
+
+                <div class="d-flex justify-content-between align-items-center">
+                    <span class="fw-bold text-secondary">Troco:</span>
+                    <span class="h3 mb-0 fw-bold text-primary">R$<span id="lbl-troco">0.00</span></span>
                 </div>
             </div>
+        </div>
+
+        <div class="d-grid gap-2 mt-4">
+            <button class="btn btn-primary btn-lg py-3 shadow-sm d-flex align-items-center justify-content-center gap-2" onclick="confirmarVenda()">
+                <i class="bi bi-check-lg fs-4"></i>
+                <span>CONFIRMAR PAGAMENTO</span>
+            </button>
+            <a href="{% url 'frente_caixa' %}" class="btn btn-outline-danger border-0">
+                Cancelar e Voltar
+            </a>
         </div>
     </div>
 </div>
@@ -99,51 +131,85 @@
 
 {% block scripts %}
 <script>
+    // Valor inicial vindo do Django
     const subtotal = parseFloat("{{ venda.valor_total|stringformat:'.2f' }}".replace(',', '.'));
 
+    // 1. Calcula Descontos e Acréscimos
     function calcularTotais() {
         const desc = parseFloat(document.getElementById('desconto').value) || 0;
         const acre = parseFloat(document.getElementById('acrescimo').value) || 0;
+        
         const total = subtotal - desc + acre;
         
+        // Atualiza Labels
         document.getElementById('lbl-desconto').innerText = desc.toFixed(2);
         document.getElementById('lbl-acrescimo').innerText = acre.toFixed(2);
         document.getElementById('lbl-total').innerText = total.toFixed(2);
+        
+        // Recalcula o troco automaticamente se o total mudar
+        calcularTroco();
     }
 
-    async function confirmarVenda() {
-        const pgto = document.getElementById('forma_pagamento').value;
-        const desc = parseFloat(document.getElementById('desconto').value) || 0;
-        const acre = parseFloat(document.getElementById('acrescimo').value) || 0;
-        const final = parseFloat(document.getElementById('lbl-total').innerText);
+    // 2. Calcula o Troco (NOVO)
+    function calcularTroco() {
+        const totalFinal = parseFloat(document.getElementById('lbl-total').innerText);
+        const recebido = parseFloat(document.getElementById('valor_recebido').value) || 0;
+        
+        // Pega o elemento PAI que contém o "R$" e o span do valor
+        const containerTroco = document.getElementById('lbl-troco').parentElement;
+        
+        if (recebido === 0) {
+            // Se não digitou nada, volta ao padrão azul
+            containerTroco.className = "h3 mb-0 fw-bold text-primary";
+            containerTroco.innerHTML = 'R$ <span id="lbl-troco">0.00</span>';
+            return;
+        }
 
-        const res = await fetch("/api/concluir-venda/{{ venda.id }}/", {
+        if (recebido >= totalFinal) {
+            // Se pagou tudo (Troco)
+            let troco = recebido - totalFinal;
+            containerTroco.className = "h3 mb-0 fw-bold text-primary";
+            containerTroco.innerHTML = 'R$ <span id="lbl-troco">' + troco.toFixed(2) + '</span>';
+        } else {
+            // Se falta dinheiro
+            let falta = totalFinal - recebido;
+            containerTroco.className = "h3 mb-0 fw-bold text-danger";
+            containerTroco.innerHTML = '-R$ <span id="lbl-troco">' + falta.toFixed(2) + '</span>';
+        }
+    }
+
+    // 3. Confirmar Venda (Mantivemos igual)
+    async function confirmarVenda() {
+        const formaPagamento = document.getElementById('forma_pagamento').value;
+        const desconto = parseFloat(document.getElementById('desconto').value) || 0;
+        const acrescimo = parseFloat(document.getElementById('acrescimo').value) || 0;
+        const valorFinal = parseFloat(document.getElementById('lbl-total').innerText);
+
+        const response = await fetch("/api/concluir-venda/{{ venda.id }}/", {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({ forma_pagamento: pgto, desconto: desc, acrescimo: acre, valor_final: final })
+            body: JSON.stringify({
+                forma_pagamento: formaPagamento,
+                desconto: desconto,
+                acrescimo: acrescimo,
+                valor_final: valorFinal
+            })
         });
 
-        const json = await res.json();
+        const json = await response.json();
         
         if (json.status === 'sucesso') {
-            if (json.aviso) {
-                alert("⚠️ ATENÇÃO:\n" + json.aviso);
-            }
-            
-            // Abre o modal de sucesso normalmente
+            if (json.aviso) alert("⚠️ ATENÇÃO:\n" + json.aviso);
             new bootstrap.Modal(document.getElementById('modalSucesso')).show();
         } else {
             alert("Erro: " + json.mensagem);
         }
     }
-
+    
+    // Atalho para abrir cupom
     function abrirCupom() {
-        // Abre uma janela de 400x600 pixels no centro da tela
         const url = "{% url 'imprimir_cupom' venda.id %}";
-        const nomeJanela = "CupomEmporikos";
-        const opcoes = "width=400,height=600,scrollbars=yes,status=no,location=no";
-        
-        window.open(url, nomeJanela, opcoes);
+        window.open(url, "Cupom", "width=400,height=600");
     }
 </script>
 {% endblock %}
