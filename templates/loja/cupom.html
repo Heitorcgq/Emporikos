@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <title>Cupom #{{ venda.id }}</title>
+    <style>
+        @page { margin: 0; size: auto; }
+        body {
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 12px;
+            margin: 5px;
+            width: 75mm; /* Largura para térmica 80mm */
+            color: #000;
+            background: #fff;
+        }
+        .text-center { text-align: center; }
+        .text-end { text-align: right; }
+        .fw-bold { font-weight: bold; }
+        .dashed-line { border-bottom: 1px dashed #000; margin: 5px 0; }
+        table { width: 100%; border-collapse: collapse; }
+        td { vertical-align: top; }
+        
+        /* Esconde botões na impressão */
+        @media print { .no-print { display: none; } }
+    </style>
+</head>
+<body>
+
+    <div class="text-center">
+        <div class="fw-bold" style="font-size: 14px;">EMPORIKOS SYSTEM</div>
+        <div>Rua Exemplo, 123 - Centro</div>
+    </div>
+
+    <div class="dashed-line"></div>
+
+    <div>
+        Data: {{ venda.data_venda|date:"d/m/Y H:i" }}<br>
+        Venda Nº: <strong>{{ venda.id }}</strong>
+    </div>
+
+    <div class="dashed-line"></div>
+
+    <table>
+        {% for item in venda.itensvenda_set.all %}
+        <tr>
+            <td colspan="2">{{ item.produto.nome }}</td>
+        </tr>
+        <tr>
+            <td>{{ item.quantidade }} x R$ {{ item.preco_unitario|floatformat:2 }}</td>
+            <td class="text-end">R$ {{ item.subtotal|floatformat:2 }}</td>
+        </tr>
+        {% endfor %}
+    </table>
+
+    <div class="dashed-line"></div>
+
+    <table>
+        <tr style="font-size: 14px;">
+            <td class="fw-bold">TOTAL:</td>
+            <td class="text-end fw-bold">R$ {{ venda.valor_final|floatformat:2 }}</td>
+        </tr>
+        <tr>
+            <td>Pagamento:</td>
+            <td class="text-end">{{ venda.get_forma_pagamento_display }}</td>
+        </tr>
+    </table>
+
+    <div class="text-center" style="margin-top: 20px;">
+        *** NÃO É DOCUMENTO FISCAL ***
+    </div>
+
+    <script>
+        window.onload = function() {
+            // Manda imprimir assim que carregar
+            window.print();
+            
+            // Tenta fechar a janela após um tempo (alguns navegadores bloqueiam o fechamento automático)
+            setTimeout(function() {
+                window.close();
+            }, 1000);
+        }
+    </script>
+</body>
+</html>

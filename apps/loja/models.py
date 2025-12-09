@@ -40,7 +40,7 @@ class Venda(models.Model):
     ]
 
     vendedor = models.ForeignKey(User, on_delete=models.PROTECT)
-    data_venda = models.DateField(auto_now_add=True)
+    data_venda = models.DateTimeField(auto_now_add=True)
     valor_total = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     desconto = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     acrescimo = models.DecimalField(max_digits=10, decimal_places=2, default=0)

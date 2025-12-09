@@ -72,9 +72,25 @@
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content border-0 shadow-lg">
             <div class="modal-body text-center p-5">
-                <div class="display-1 text-success mb-3"><i class="bi bi-check-circle-fill"></i></div>
-                <h3 class="fw-bold text-primary">Venda Concluída!</h3>
-                <a href="{% url 'frente_caixa' %}" class="btn btn-primary mt-3 px-5 rounded-pill">Nova Venda</a>
+                
+                <div class="mb-3 text-success">
+                    <i class="bi bi-check-circle-fill" style="font-size: 4rem;"></i>
+                </div>
+                
+                <h3 class="fw-bold text-dark mb-2">Venda Finalizada!</h3>
+                
+                <div class="d-grid gap-3 col-10 mx-auto">
+                    <button onclick="abrirCupom()" class="btn btn-dark btn-lg shadow-sm d-flex align-items-center justify-content-center gap-2">
+                        <i class="bi bi-printer-fill fs-5"></i> 
+                        <span>Imprimir Cupom</span>
+                    </button>
+                    
+                    <a href="{% url 'frente_caixa' %}" class="btn btn-outline-primary btn-lg d-flex align-items-center justify-content-center gap-2">
+                        <i class="bi bi-cart-plus fs-5"></i>
+                        <span>Nova Venda</span>
+                    </a>
+                </div>
+
             </div>
         </div>
     </div>
@@ -119,6 +135,15 @@
         } else {
             alert("Erro: " + json.mensagem);
         }
+    }
+
+    function abrirCupom() {
+        // Abre uma janela de 400x600 pixels no centro da tela
+        const url = "{% url 'imprimir_cupom' venda.id %}";
+        const nomeJanela = "CupomEmporikos";
+        const opcoes = "width=400,height=600,scrollbars=yes,status=no,location=no";
+        
+        window.open(url, nomeJanela, opcoes);
     }
 </script>
 {% endblock %}

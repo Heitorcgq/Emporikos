@@ -301,3 +301,8 @@ def dashboard_vendas(request):
     }
     
     return render(request, 'loja/dashboard_vendas.html', context)
+
+@login_required
+def imprimir_cupom(request, venda_id):
+    venda = get_object_or_404(Venda, id=venda_id)
+    return render(request, 'loja/cupom.html', {'venda': venda})
