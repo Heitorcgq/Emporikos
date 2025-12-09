@@ -22,13 +22,37 @@
                         </select>
                     </div>
                     <div class="row g-3">
-                        <div class="col-md-6">
-                            <label class="form-label fw-bold text-secondary">Desconto (R$)</label>
-                            <div class="input-group"><span class="input-group-text text-danger bg-white"><i class="bi bi-arrow-down"></i></span><input type="number" id="desconto" class="form-control border-danger" step="0.01" value="0.00" oninput="calcularTotais()"></div>
+    <div class="col-md-3">
+        <label class="form-label fw-bold text-secondary small">Desconto (R$)</label>
+        <div class="input-group">
+            <span class="input-group-text bg-white text-danger border border-danger border-end-0">
+                <i class="bi bi-currency-dollar"></i>
+            </span>
+            <input type="number" id="desconto" class="form-control border-start-0 border-danger text-danger fw-bold" 
+                   step="0.01" value="0.00" oninput="aoMudarDescontoDinheiro()">
+        </div>
+    </div>
+
+                        <div class="col-md-3">
+                            <label class="form-label fw-bold text-secondary small">Desconto (%)</label>
+                            <div class="input-group">
+                                <input type="number" id="desconto_percent" class="form-control border-end-0 border-danger text-danger fw-bold" 
+                                    step="0.1" value="0" oninput="aoMudarDescontoPorcento()">
+                                <span class="input-group-text bg-white text-danger border border-danger border-start-0">
+                                    <i class="bi bi-percent"></i>
+                                </span>
+                            </div>
                         </div>
+
                         <div class="col-md-6">
-                            <label class="form-label fw-bold text-secondary">Acréscimo (R$)</label>
-                            <div class="input-group"><span class="input-group-text text-success bg-white"><i class="bi bi-arrow-up"></i></span><input type="number" id="acrescimo" class="form-control border-success" step="0.01" value="0.00" oninput="calcularTotais()"></div>
+                            <label class="form-label fw-bold text-secondary small">Acréscimo (R$)</label>
+                            <div class="input-group">
+                                <span class="input-group-text bg-white text-success border border-success border-end-0">
+                                    <i class="bi bi-plus-lg"></i>
+                                </span>
+                                <input type="number" id="acrescimo" class="form-control border-start-0 border-success text-success fw-bold" 
+                                    step="0.01" value="0.00" oninput="calcularTotais()">
+                            </div>
                         </div>
                     </div>
                     <div class="mt-4">
@@ -131,72 +155,101 @@
 
 {% block scripts %}
 <script>
-    // Valor inicial vindo do Django
+    // Valor inicial do Subtotal (Vindo do Django)
     const subtotal = parseFloat("{{ venda.valor_total|stringformat:'.2f' }}".replace(',', '.'));
 
-    // 1. Calcula Descontos e Acréscimos
+    // --- LÓGICA DE SINCRONIZAÇÃO DE DESCONTO ---
+
+    // 1. Digitou no R$ -> Calcula a %
+    function aoMudarDescontoDinheiro() {
+        const valDesconto = parseFloat(document.getElementById('desconto').value) || 0;
+        
+        if (subtotal > 0) {
+            // Regra de 3: (Valor / Total) * 100
+            const novaPorcentagem = (valDesconto / subtotal) * 100;
+            
+            // Atualiza o campo % (com no máximo 2 casas decimais para não ficar quebrado)
+            document.getElementById('desconto_percent').value = novaPorcentagem.toFixed(2);
+        }
+        
+        // Chama o cálculo geral
+        calcularTotais();
+    }
+
+    // 2. Digitou na % -> Calcula o R$
+    function aoMudarDescontoPorcento() {
+        const valPorcento = parseFloat(document.getElementById('desconto_percent').value) || 0;
+        
+        // Conta: Total * (Porcentagem / 100)
+        const novoValor = subtotal * (valPorcento / 100);
+        
+        // Atualiza o campo R$
+        document.getElementById('desconto').value = novoValor.toFixed(2);
+        
+        // Chama o cálculo geral
+        calcularTotais();
+    }
+
+    // --- CÁLCULOS GERAIS (Mantidos e Ajustados) ---
+
     function calcularTotais() {
+        // Pega os valores (o desconto em R$ já estará atualizado pelas funções acima)
         const desc = parseFloat(document.getElementById('desconto').value) || 0;
         const acre = parseFloat(document.getElementById('acrescimo').value) || 0;
         
+        // Conta final
         const total = subtotal - desc + acre;
         
-        // Atualiza Labels
+        // Atualiza os textos na tela (Resumo Financeiro)
         document.getElementById('lbl-desconto').innerText = desc.toFixed(2);
         document.getElementById('lbl-acrescimo').innerText = acre.toFixed(2);
         document.getElementById('lbl-total').innerText = total.toFixed(2);
         
-        // Recalcula o troco automaticamente se o total mudar
+        // Recalcula o troco se tiver valor recebido digitado
         calcularTroco();
     }
 
-    // 2. Calcula o Troco (NOVO)
     function calcularTroco() {
         const totalFinal = parseFloat(document.getElementById('lbl-total').innerText);
         const recebido = parseFloat(document.getElementById('valor_recebido').value) || 0;
-        
-        // Pega o elemento PAI que contém o "R$" e o span do valor
         const containerTroco = document.getElementById('lbl-troco').parentElement;
         
         if (recebido === 0) {
-            // Se não digitou nada, volta ao padrão azul
             containerTroco.className = "h3 mb-0 fw-bold text-primary";
             containerTroco.innerHTML = 'R$ <span id="lbl-troco">0.00</span>';
             return;
         }
 
         if (recebido >= totalFinal) {
-            // Se pagou tudo (Troco)
             let troco = recebido - totalFinal;
             containerTroco.className = "h3 mb-0 fw-bold text-primary";
-            containerTroco.innerHTML = 'R$ <span id="lbl-troco">' + troco.toFixed(2) + '</span>';
+            containerTroco.innerHTML = 'Troco: R$ <span id="lbl-troco">' + troco.toFixed(2) + '</span>';
         } else {
-            // Se falta dinheiro
             let falta = totalFinal - recebido;
             containerTroco.className = "h3 mb-0 fw-bold text-danger";
-            containerTroco.innerHTML = '-R$ <span id="lbl-troco">' + falta.toFixed(2) + '</span>';
+            containerTroco.innerHTML = 'Falta: R$ <span id="lbl-troco">' + falta.toFixed(2) + '</span>';
         }
     }
 
-    // 3. Confirmar Venda (Mantivemos igual)
     async function confirmarVenda() {
-        const formaPagamento = document.getElementById('forma_pagamento').value;
-        const desconto = parseFloat(document.getElementById('desconto').value) || 0;
-        const acrescimo = parseFloat(document.getElementById('acrescimo').value) || 0;
-        const valorFinal = parseFloat(document.getElementById('lbl-total').innerText);
+        const pgto = document.getElementById('forma_pagamento').value;
+        const desc = parseFloat(document.getElementById('desconto').value) || 0;
+        const acre = parseFloat(document.getElementById('acrescimo').value) || 0;
+        const final = parseFloat(document.getElementById('lbl-total').innerText);
+        
+        // Validação de troco
+        const recebido = parseFloat(document.getElementById('valor_recebido').value) || 0;
+        if (pgto === 'DIN' && recebido > 0 && recebido < final) {
+            if(!confirm("O valor recebido é menor que o total. Deseja finalizar mesmo assim?")) return;
+        }
 
-        const response = await fetch("/api/concluir-venda/{{ venda.id }}/", {
+        const res = await fetch("/api/concluir-venda/{{ venda.id }}/", {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({
-                forma_pagamento: formaPagamento,
-                desconto: desconto,
-                acrescimo: acrescimo,
-                valor_final: valorFinal
-            })
+            body: JSON.stringify({ forma_pagamento: pgto, desconto: desc, acrescimo: acre, valor_final: final })
         });
 
-        const json = await response.json();
+        const json = await res.json();
         
         if (json.status === 'sucesso') {
             if (json.aviso) alert("⚠️ ATENÇÃO:\n" + json.aviso);
@@ -206,10 +259,9 @@
         }
     }
     
-    // Atalho para abrir cupom
     function abrirCupom() {
         const url = "{% url 'imprimir_cupom' venda.id %}";
-        window.open(url, "Cupom", "width=400,height=600");
+        window.open(url, "Cupom", "width=400,height=600,scrollbars=yes,status=no,location=no");
     }
 </script>
 {% endblock %}
