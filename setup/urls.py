@@ -15,6 +15,7 @@ urlpatterns = [
     path('relatorios/estoque/', views.relatorio_estoque, name='relatorio_estoque'),
     path('produtos/editar/<int:produto_id>/', views.editar_produto, name='editar_produto'),
     path('produtos/excluir/<int:produto_id>/', views.excluir_produto, name='excluir_produto'),
+    path('relatorios/vendas/dashboard/', views.dashboard_vendas, name='dashboard_vendas'),
     
     # Rotas "invisíveis" que o JavaScript vai chamar
     path('api/buscar-produto/', views.buscar_produto, name='buscar_produto'),

@@ -3,11 +3,12 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.contrib.auth.decorators import login_required
-from django.db.models import Sum
+from django.db.models import Sum, Count
 from .models import Produto, Venda, ItensVenda, Categoria
 from .forms import ProdutoForm, CategoriaForm
 from datetime import datetime, timedelta
 from django.utils import timezone
+from django.db.models.functions import TruncDay
 
 @login_required
 def frente_caixa(request):
@@ -107,9 +108,7 @@ def checkout(request, venda_id):
 
 @csrf_exempt
 def concluir_venda(request, venda_id):
-    """
-    ETAPA 3: Recebe os dados de pagamento, BAIXA O ESTOQUE e finaliza.
-    """
+    """Finaliza a venda e BAIXA O ESTOQUE (com proteção contra negativo infinito)."""
     if request.method == 'POST':
         venda = get_object_or_404(Venda, id=venda_id)
         
@@ -118,21 +117,38 @@ def concluir_venda(request, venda_id):
 
         dados = json.loads(request.body)
         
-        # Atualiza valores
+        # Atualiza dados financeiros
         venda.desconto = float(dados.get('desconto', 0))
         venda.acrescimo = float(dados.get('acrescimo', 0))
         venda.valor_final = float(dados.get('valor_final', venda.valor_total))
         venda.forma_pagamento = dados.get('forma_pagamento', 'DIN')
-        venda.status = 'C' # CONCLUÍDA
+        venda.status = 'C' # Concluída
         venda.save()
         
-        # AGORA SIM: Baixa o estoque
+        # Lista para guardar nomes de produtos que já estavam zerados
+        itens_sem_baixa = []
+
+        # Baixa Estoque com Condição
         for item in venda.itensvenda_set.all():
             produto = item.produto
-            produto.estoque_atual -= item.quantidade
-            produto.save()
             
-        return JsonResponse({'status': 'sucesso'})
+            # REGRA: Só desconta se tiver estoque positivo
+            if produto.estoque_atual > 0:
+                produto.estoque_atual -= item.quantidade
+                produto.save()
+            else:
+                # Se já for 0 ou negativo, não faz nada e avisa
+                itens_sem_baixa.append(produto.nome)
+        
+        # Prepara a resposta
+        resposta = {'status': 'sucesso'}
+        
+        # Se houve algum item que não baixou estoque, avisamos
+        if itens_sem_baixa:
+            nomes = ", ".join(itens_sem_baixa)
+            resposta['aviso'] = f"Venda concluída! Porém, estes itens já estavam esgotados e o estoque não foi alterado: {nomes}"
+            
+        return JsonResponse(resposta)
         
     return JsonResponse({'status': 'erro'}, status=400)
 
@@ -234,3 +250,54 @@ def excluir_produto(request, produto_id):
     produto = get_object_or_404(Produto, id=produto_id)
     produto.delete()
     return redirect('relatorio_estoque')
+
+@login_required
+def dashboard_vendas(request):
+    # Data de corte (últimos 30 dias)
+    data_limite = timezone.now() - timedelta(days=30)
+    
+    # 1. GRÁFICO DE VENDAS DIÁRIAS (Linha)
+    # Agrupa vendas por dia e soma o valor total
+    vendas_diarias = Venda.objects.filter(
+        data_venda__gte=data_limite, status='C'
+    ).annotate(
+        dia=TruncDay('data_venda')
+    ).values('dia').annotate(
+        total=Sum('valor_total')
+    ).order_by('dia')
+    
+    # Prepara listas para o Javascript
+    datas_grafico = [v['dia'].strftime('%d/%m') for v in vendas_diarias]
+    valores_grafico = [float(v['total']) for v in vendas_diarias]
+
+    # 2. GRÁFICO DE FORMAS DE PAGAMENTO (Rosca)
+    vendas_pagamento = Venda.objects.filter(status='C').values('forma_pagamento').annotate(
+        qtd=Count('id')
+    )
+    
+    labels_pgto = [v['forma_pagamento'] for v in vendas_pagamento]
+    dict_pgto = dict(Venda.FORMA_PAGAMENTO_CHOICES)
+    labels_pgto = [dict_pgto.get(l, l) for l in labels_pgto]
+    
+    dados_pgto = [v['qtd'] for v in vendas_pagamento]
+
+    # 3. TOP 5 PRODUTOS MAIS VENDIDOS (Barras)
+    top_produtos = ItensVenda.objects.values(
+        'produto__nome'
+    ).annotate(
+        total_vendido=Sum('quantidade')
+    ).order_by('-total_vendido')[:5]
+    
+    labels_prod = [p['produto__nome'] for p in top_produtos]
+    dados_prod = [p['total_vendido'] for p in top_produtos]
+
+    context = {
+        'datas_grafico': json.dumps(datas_grafico),
+        'valores_grafico': json.dumps(valores_grafico),
+        'labels_pgto': json.dumps(labels_pgto),
+        'dados_pgto': json.dumps(dados_pgto),
+        'labels_prod': json.dumps(labels_prod),
+        'dados_prod': json.dumps(dados_prod),
+    }
+    
+    return render(request, 'loja/dashboard_vendas.html', context)

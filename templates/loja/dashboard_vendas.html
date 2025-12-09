@@ -1,0 +1,105 @@
+{% extends "core/base.html" %}
+
+{% block content %}
+<div class="container">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2 class="text-dark fw-bold"><i class="bi bi-graph-up-arrow me-2 text-primary"></i>Dashboard de Vendas</h2>
+        <a href="{% url 'relatorio_vendas' %}" class="btn btn-primary w-10">
+            <i class="bi bi-arrow-left"></i> Voltar para Relatório
+        </a>
+    </div>
+
+    <div class="row g-4 mb-4">
+        <div class="col-lg-8">
+            <div class="panel h-100 p-4 border rounded shadow-sm bg-white">
+                <h5 class="fw-bold text-secondary mb-4">Faturamento (Últimos 30 Dias)</h5>
+                <canvas id="graficoVendas" style="height: 300px; width: 100%;"></canvas>
+            </div>
+        </div>
+        
+        <div class="col-lg-4">
+            <div class="panel h-100 p-4 border rounded shadow-sm bg-white">
+                <h5 class="fw-bold text-secondary mb-4">Formas de Pagamento</h5>
+                <div style="height: 250px; position: relative;">
+                    <canvas id="graficoPagamento"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-12">
+            <div class="panel p-4 border rounded shadow-sm bg-white">
+                <h5 class="fw-bold text-secondary mb-4">Top 5 Produtos Mais Vendidos</h5>
+                <canvas id="graficoProdutos" style="max-height: 250px;"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<script>
+    // --- 1. Gráfico de Linha (Faturamento) ---
+    const ctxVendas = document.getElementById('graficoVendas');
+    new Chart(ctxVendas, {
+        type: 'line',
+        data: {
+            labels: {{ datas_grafico|safe }},
+            datasets: [{
+                label: 'Faturamento (R$)',
+                data: {{ valores_grafico|safe }},
+                borderColor: '#0d6efd',
+                backgroundColor: 'rgba(13, 110, 253, 0.1)',
+                borderWidth: 2,
+                fill: true,
+                tension: 0.4 // Curva suave
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: { legend: { display: false } },
+            scales: { y: { beginAtZero: true } }
+        }
+    });
+
+    // --- 2. Gráfico de Rosca (Pagamento) ---
+    const ctxPgto = document.getElementById('graficoPagamento');
+    new Chart(ctxPgto, {
+        type: 'doughnut',
+        data: {
+            labels: {{ labels_pgto|safe }},
+            datasets: [{
+                data: {{ dados_pgto|safe }},
+                backgroundColor: ['#0d6efd', '#198754', '#ffc107', '#dc3545'],
+                borderWidth: 0
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { position: 'bottom' } }
+        }
+    });
+
+    // --- 3. Gráfico de Barras (Produtos) ---
+    const ctxProd = document.getElementById('graficoProdutos');
+    new Chart(ctxProd, {
+        type: 'bar',
+        data: {
+            labels: {{ labels_prod|safe }},
+            datasets: [{
+                label: 'Unidades Vendidas',
+                data: {{ dados_prod|safe }},
+                backgroundColor: '#6c757d',
+                borderRadius: 4
+            }]
+        },
+        options: {
+            responsive: true,
+            indexAxis: 'y', // Barra horizontal
+            scales: { x: { beginAtZero: true } }
+        }
+    });
+</script>
+{% endblock %}
