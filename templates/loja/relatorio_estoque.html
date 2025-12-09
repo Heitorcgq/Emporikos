@@ -81,42 +81,45 @@
                         <th class="text-end">Custo</th>
                         <th class="text-end">Venda</th>
                         <th class="text-center pe-4">Estoque Atual</th>
-                        <th class="text-center pe-4">Estoque Atual</th>
                         <th class="text-end pe-4">Ações</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for p in produtos %}
-                    <tr class="{% if p.estoque_atual == 0 %}table-danger bg-opacity-10{% elif p.estoque_atual <= 5 %}table-warning bg-opacity-10{% endif %}">
+                    <tr class="{% if p.estoque_atual <= 0 %}table-danger bg-opacity-10{% elif p.estoque_atual <= 5 %}table-warning bg-opacity-10{% endif %}">
                         <td class="ps-4 text-secondary"><small>{{ p.codigo|default:"-" }}</small></td>
                         <td>
-                            <div class="fw-bold text-primary">{{ p.nome }}</div>
+                            <div class="fw-bold text-primary">
+                                {{ p.nome }}
+                                <span class="badge bg-light text-secondary border ms-1" style="font-size: 0.7em;">
+                                    {{ p.tipo_venda }}
+                                </span>
+                            </div>
                             <small class="text-muted">{{ p.detalhes }}</small>
                         </td>
                         <td><span class="badge bg-light text-secondary border">{{ p.categoria.nome|default:"Geral" }}</span></td>
                         <td class="text-end text-muted">R$ {{ p.preco_compra|floatformat:2 }}</td>
                         <td class="text-end fw-bold text-primary">R$ {{ p.preco_venda|floatformat:2 }}</td>
+                        
                         <td class="text-center pe-4">
                             {% if p.estoque_atual <= 0 %}
                                 <span class="badge bg-danger">ESGOTADO</span>
-                            {% elif p.estoque_atual <= 10 %}
+                            {% elif p.estoque_atual <= 5 %}
                                 <span class="badge bg-warning text-dark">{{ p.estoque_atual }} (Baixo)</span>
                             {% else %}
                                 <span class="fw-bold fs-5 text-secondary">{{ p.estoque_atual }}</span>
                             {% endif %}
-                            <td class="text-center pe-4">
-                                </td>
+                        </td>
 
-                            <td class="text-end pe-4">
-                                <a href="{% url 'editar_produto' p.id %}" class="btn btn-sm btn-outline-primary" title="Editar">
-                                    <i class="bi bi-pencil"></i>
-                                </a>
-
+                        <td class="text-end pe-4">
+                            <a href="{% url 'editar_produto' p.id %}" class="btn btn-sm btn-outline-primary" title="Editar">
+                                <i class="bi bi-pencil"></i>
+                            </a>
                         </td>
                     </tr>
                     {% empty %}
                     <tr>
-                        <td colspan="6" class="text-center py-5 text-muted">
+                        <td colspan="7" class="text-center py-5 text-muted">
                             <i class="bi bi-box h1 d-block mb-2"></i>
                             Nenhum produto encontrado com estes filtros.
                         </td>

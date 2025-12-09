@@ -9,57 +9,57 @@
             <i class="bi bi-arrow-left"></i> Voltar ao Caixa
         </a>
     </div>
-    
-    <div class="panel">
+
+    <div class="panel p-4 bg-white border rounded shadow-sm">
+        
         <form method="post">
             {% csrf_token %}
             
             {% if form.errors %}
             <div class="alert alert-danger">
-                Corrija os erros abaixo antes de salvar.
+                Verifique os erros abaixo.
             </div>
             {% endif %}
 
-            <div class="row g-4">
+            <div class="row g-3">
                 <div class="col-md-12">
                     <label class="form-label fw-bold text-secondary">Nome do Produto *</label>
                     {{ form.nome }}
                     <div class="text-danger small">{{ form.nome.errors }}</div>
                 </div>
 
-                <div class="col-md-6">
+                <div class="col-md-4">
                     <label class="form-label fw-bold text-secondary">Categoria</label>
                     {{ form.categoria }}
                 </div>
 
-                <div class="col-md-6">
-                    <label class="form-label fw-bold text-secondary">Código / SKU</label>
-                    <div class="input-group">
-                        <span class="input-group-text bg-light border"><i class="bi bi-tag-fill"></i></span>
-                        
-                        <input type="text" 
-                            name="codigo" 
-                            id="id_codigo"
-                            class="form-control" 
-                            placeholder="Ex: 1234 ou SKU-01"
-                            value="{{ form.codigo.value|default_if_none:'' }}"
-                            maxlength="50">
-                    </div>
-                    <div class="text-danger small">{{ form.codigo.errors }}</div>
-                    <div class="form-text small">Crie um código para identificar este item.</div>
+                <div class="col-md-4">
+                    <label class="form-label fw-bold text-secondary">Tipo de Venda</label>
+                    {{ form.tipo_venda }}
                 </div>
 
                 <div class="col-md-4">
-                    <label class="form-label fw-bold text-secondary">Preço de Custo (R$)</label>
+                    <label class="form-label fw-bold text-secondary">Código / SKU</label>
                     <div class="input-group">
-                        <span class="input-group-text">R$</span>
+                        <span class="input-group-text bg-light text-secondary border"><i class="bi bi-tag-fill"></i></span>
+                        <input type="text" name="codigo" id="id_codigo" class="form-control bg-light text-dark" 
+                               value="{{ form.codigo.value|default_if_none:'' }}"
+                               maxlength="50">
+                    </div>
+                    <div class="text-danger small">{{ form.codigo.errors }}</div>
+                </div>
+
+                <div class="col-md-4">
+                    <label class="form-label fw-bold text-secondary">Custo (R$)</label>
+                    <div class="input-group">
+                        <span class="input-group-text bg-light text-secondary border">R$</span>
                         {{ form.preco_compra }}
                     </div>
                 </div>
                 <div class="col-md-4">
-                    <label class="form-label fw-bold text-secondary text-primary">Preço de Venda (R$)</label>
+                    <label class="form-label fw-bold text-primary">Venda (R$)</label>
                     <div class="input-group">
-                        <span class="input-group-text bg-primary text-white border-primary">R$</span>
+                        <span class="input-group-text bg-light text-secondary border fw-bold">R$</span>
                         {{ form.preco_venda }}
                     </div>
                 </div>
@@ -74,7 +74,7 @@
                 </div>
             </div>
 
-            <hr class="my-4 text-muted">
+            <hr class="my-4 text-muted border-secondary opacity-25">
 
             <div class="d-grid">
                 <button type="submit" class="btn btn-primary btn-lg shadow-sm">
@@ -82,6 +82,35 @@
                 </button>
             </div>
         </form>
+
     </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Script Inteligente:
+    // Quando mudar o "Tipo de Venda", ajusta o campo de "Estoque" automaticamente.
+    
+    document.addEventListener("DOMContentLoaded", function() {
+        const selectTipo = document.getElementById('id_tipo_venda');
+        const inputEstoque = document.getElementById('id_estoque');
+
+        function ajustarEstoque() {
+            if (selectTipo.value === 'UN') {
+                // Se for Unidade: Só aceita inteiros, passo de 1 em 1
+                inputEstoque.setAttribute('step', '1');
+                inputEstoque.setAttribute('placeholder', 'Ex: 10, 50');
+            } else {
+                // Se for Fração: Aceita decimais (0.001)
+                inputEstoque.setAttribute('step', '0.001');
+                inputEstoque.setAttribute('placeholder', 'Ex: 1.500, 0.5');
+            }
+        }
+
+        // Executa ao carregar e quando mudar
+        selectTipo.addEventListener('change', ajustarEstoque);
+        ajustarEstoque();
+    });
+</script>
 {% endblock %}

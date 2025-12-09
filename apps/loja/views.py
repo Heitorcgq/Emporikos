@@ -43,7 +43,8 @@ def buscar_produto(request):
             'id': p.id,
             'nome': p.nome,
             'preco': float(p.preco_venda),
-            'codigo': p.codigo or '---'
+            'codigo': p.codigo or '---',
+            'tipo': p.tipo_venda
         })
     
     return JsonResponse(dados, safe=False)
@@ -72,7 +73,7 @@ def iniciar_venda(request):
         
         for item in carrinho:
             produto = Produto.objects.get(id=item['id'])
-            quantidade = int(item['quantidade'])
+            quantidade = float(item['quantidade'])
             preco = float(produto.preco_venda)
             
             ItensVenda.objects.create(
@@ -132,9 +133,8 @@ def concluir_venda(request, venda_id):
         for item in venda.itensvenda_set.all():
             produto = item.produto
             
-            # REGRA: Só desconta se tiver estoque positivo
             if produto.estoque_atual > 0:
-                produto.estoque_atual -= item.quantidade
+                produto.estoque_atual -= item.quantidade 
                 produto.save()
             else:
                 # Se já for 0 ou negativo, não faz nada e avisa

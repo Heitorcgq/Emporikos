@@ -10,37 +10,48 @@
         </a>
     </div>
 
-    <div class="panel">
+    <div class="panel p-4 bg-white border rounded shadow-sm">
         <form method="post">
             {% csrf_token %}
             
-            <div class="row g-4">
+            <div class="row g-3">
                 <div class="col-md-12">
                     <label class="form-label fw-bold text-secondary">Nome do Produto</label>
                     {{ form.nome }}
                 </div>
 
-                <div class="col-md-6">
+                <div class="col-md-4">
                     <label class="form-label fw-bold text-secondary">Categoria</label>
                     {{ form.categoria }}
                 </div>
 
-                <div class="col-md-6">
+                <div class="col-md-4">
+                    <label class="form-label fw-bold text-secondary">Tipo de Venda</label>
+                    {{ form.tipo_venda }}
+                </div>
+
+                <div class="col-md-4">
                     <label class="form-label fw-bold text-secondary">Código / SKU</label>
                     <div class="input-group">
                         <span class="input-group-text bg-light border"><i class="bi bi-tag-fill"></i></span>
-                        <input type="text" name="codigo" id="id_codigo" class="form-control" 
+                        <input type="text" name="codigo" id="id_codigo" class="form-control bg-light text-dark" 
                                value="{{ form.codigo.value|default_if_none:'' }}" maxlength="50">
                     </div>
                 </div>
 
                 <div class="col-md-4">
                     <label class="form-label fw-bold text-secondary">Custo (R$)</label>
-                    {{ form.preco_compra }}
+                    <div class="input-group">
+                        <span class="input-group-text bg-light text-secondary border">R$</span>
+                        {{ form.preco_compra }}
+                    </div>
                 </div>
                 <div class="col-md-4">
                     <label class="form-label fw-bold text-primary">Venda (R$)</label>
-                    {{ form.preco_venda }}
+                    <div class="input-group">
+                        <span class="input-group-text bg-light text-secondary border fw-bold">R$</span>
+                        {{ form.preco_venda }}
+                    </div>
                 </div>
                 <div class="col-md-4">
                     <label class="form-label fw-bold text-secondary">Estoque</label>
@@ -53,17 +64,43 @@
                 </div>
             </div>
 
-            <hr class="my-4 text-muted">
+            <hr class="my-4 text-muted border-secondary opacity-25">
 
             <div class="d-grid gap-2">
-                <button type="submit" class="btn btn-primary btn-lg shadow-sm">
-                    <i class="bi bi-save me-2"></i> Salvar Alterações
+                <button type="submit" class="btn btn-primary btn-lg shadow-sm d-flex align-items-center justify-content-center gap-2">
+                    <i class="bi bi-save"></i> Salvar Alterações
                 </button>
-                <a href="{% url 'excluir_produto' produto.id %}" class="btn btn-outline-danger" onclick="return confirm('Tem certeza que deseja EXCLUIR este produto? Essa ação não pode ser desfeita.')">
+                
+                <a href="{% url 'excluir_produto' produto.id %}" class="btn btn-outline-danger d-flex align-items-center justify-content-center gap-2" onclick="return confirm('Tem certeza que deseja EXCLUIR este produto? Essa ação não pode ser desfeita.')">
                     <i class="bi bi-trash"></i> Excluir Produto
                 </a>
             </div>
         </form>
     </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Mesma lógica do cadastro: Ajusta o campo de estoque
+    document.addEventListener("DOMContentLoaded", function() {
+        const selectTipo = document.getElementById('id_tipo_venda');
+        const inputEstoque = document.getElementById('id_estoque');
+
+        function ajustarEstoque() {
+            if (selectTipo.value === 'UN') {
+                // Se for Unidade: Só aceita inteiros
+                inputEstoque.setAttribute('step', '1');
+            } else {
+                // Se for Fração: Aceita decimais
+                inputEstoque.setAttribute('step', '0.001');
+            }
+        }
+
+        // Executa ao abrir (para carregar o estado atual)
+        ajustarEstoque();
+        // Executa se mudar
+        selectTipo.addEventListener('change', ajustarEstoque);
+    });
+</script>
 {% endblock %}

@@ -29,7 +29,7 @@
                 <table class="table table-hover align-middle mb-0">
                     <thead class="table-light sticky-top">
                         <tr>
-                            <th>#</th>
+                            <th>Código</th>
                             <th>Produto</th>
                             <th class="text-center">Qtd</th>
                             <th class="text-end">Unitário</th>
@@ -99,7 +99,6 @@
                 listaSugestoes.style.display = 'none';
                 return;
             }
-            // Prioridade para código exato
             const exato = dados.find(p => p.codigo.toLowerCase() === termo.toLowerCase());
             if (exato) { adicionarAoCarrinho(exato); inputBusca.value = ''; listaSugestoes.style.display = 'none'; }
             else if (dados.length === 1) { adicionarAoCarrinho(dados[0]); inputBusca.value = ''; listaSugestoes.style.display = 'none'; }
@@ -120,7 +119,10 @@
             const li = document.createElement('li');
             li.className = 'list-group-item list-group-item-action d-flex justify-content-between cursor-pointer';
             li.style.cursor = 'pointer';
-            li.innerHTML = `<div><strong>${p.nome}</strong><br><small>${p.codigo}</small></div><span class="fw-bold">R$ ${p.preco.toFixed(2)}</span>`;
+            
+            // --- MOSTRA O TIPO (UN/FR) NA LISTA ---
+            li.innerHTML = `<div><strong>${p.nome}</strong> <span class="badge bg-light text-secondary border ms-1" style="font-size: 0.7em;">${p.tipo}</span><br><small>${p.codigo}</small></div><span class="fw-bold">R$ ${p.preco.toFixed(2)}</span>`;
+            
             li.onclick = () => { adicionarAoCarrinho(p); inputBusca.value = ''; listaSugestoes.style.display = 'none'; inputBusca.focus(); };
             listaSugestoes.appendChild(li);
         });
@@ -132,7 +134,13 @@
     // 2. Carrinho
     function adicionarAoCarrinho(produto) {
         const existente = carrinho.find(i => i.id === produto.id);
-        if (existente) existente.quantidade++; else carrinho.push({ ...produto, quantidade: 1 });
+        if (existente) {
+            // Soma 1 por padrão
+            existente.quantidade = parseFloat(existente.quantidade) + 1;
+        } else {
+            // Adiciona novo
+            carrinho.push({ ...produto, quantidade: 1 });
+        }
         renderizarTabela();
     }
 
@@ -140,22 +148,67 @@
         const tbody = document.getElementById('tabela-itens');
         tbody.innerHTML = '';
         let total = 0, qtd = 0;
+        
         carrinho.forEach((item, idx) => {
-            const sub = item.preco * item.quantidade;
-            total += sub; qtd += item.quantidade;
-            tbody.innerHTML += `<tr><td>${idx+1}</td><td>${item.nome}<br><small>${item.codigo}</small></td><td class="text-center"><input type="number" min="1" class="form-control form-control-sm text-center d-inline-block" style="width:60px" value="${item.quantidade}" onchange="atualizarQtd(${idx},this.value)"></td><td class="text-end">R$ ${item.preco.toFixed(2)}</td><td class="text-end fw-bold">R$ ${sub.toFixed(2)}</td><td class="text-center"><button class="btn btn-sm text-danger" onclick="removerItem(${idx})"><i class="bi bi-trash"></i></button></td></tr>`;
+            const sub = item.preco * parseFloat(item.quantidade);
+            total += sub; 
+            qtd += 1;
+            
+            // Define o "passo" (1 ou 0.001) baseado no tipo do produto
+            const step = item.tipo === 'UN' ? '1' : '0.001';
+            const min = item.tipo === 'UN' ? '1' : '0.001';
+            
+            tbody.innerHTML += `
+            <tr>
+                <td class="ps-3 fw-bold text-muted">${item.codigo}</td>
+                <td>
+                    <span class="fw-bold text-dark">${item.nome}</span>
+                    <span class="badge bg-light text-secondary border ms-1" style="font-size: 0.7em;">${item.tipo}</span><br>
+                    ${ item.detalhes ? `<small class="text-muted fst-italic" style="font-size: 0.8rem;">${item.detalhes}</small>` : '' }
+                </td>
+                <td class="text-center">
+                    <input type="number" step="${step}" min="${min}" 
+                           class="form-control form-control-sm text-center d-inline-block bg-white border" 
+                           style="width:80px" 
+                           value="${item.quantidade}" 
+                           onchange="atualizarQtd(${idx}, this.value, '${item.tipo}')">
+                </td>
+                <td class="text-end text-muted">R$ ${item.preco.toFixed(2)}</td>
+                <td class="text-end fw-bold text-primary">R$ ${sub.toFixed(2)}</td>
+                <td class="text-center pe-3">
+                    <button class="btn btn-sm btn-light text-danger border-0" onclick="removerItem(${idx})">
+                        <i class="bi bi-trash"></i>
+                    </button>
+                </td>
+            </tr>`;
         });
+        
         const fmt = total.toLocaleString('pt-BR', {style:'currency', currency:'BRL'});
         document.getElementById('visor-total').innerText = fmt;
         document.getElementById('resumo-total').innerText = fmt;
         document.getElementById('total-itens-badge').innerText = `${qtd} itens`;
     }
 
-    function atualizarQtd(i, v) { if(v<1)return; carrinho[i].quantidade = parseInt(v); renderizarTabela(); }
+    // --- FUNÇÃO DE ATUALIZAR QTD MODIFICADA PARA VALIDAR ---
+    function atualizarQtd(i, v, tipo) { 
+        let novaQtd = parseFloat(v);
+        if(novaQtd <= 0 || isNaN(novaQtd)) return;
+        
+        // Se for Unidade, proíbe decimais
+        if (tipo === 'UN' && !Number.isInteger(novaQtd)) {
+            alert("Este produto é vendido apenas por unidade inteira!");
+            renderizarTabela(); // Reseta visualmente
+            return;
+        }
+        
+        carrinho[i].quantidade = novaQtd; 
+        renderizarTabela(); 
+    }
+
     function removerItem(i) { carrinho.splice(i, 1); renderizarTabela(); }
     function limparCarrinho() { carrinho = []; renderizarTabela(); inputBusca.focus(); }
 
-    // 3. Finalizar (Manda pro backend e redireciona)
+    // 3. Finalizar
     async function finalizarVenda() {
         if (carrinho.length === 0) { alert("Carrinho vazio!"); return; }
         const res = await fetch('/api/iniciar-venda/', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({carrinho}) });

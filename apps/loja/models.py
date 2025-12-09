@@ -8,11 +8,17 @@ class Categoria(models.Model):
         return self.nome
     
 class Produto(models.Model):
+    TIPO_VENDA_CHOICES = [
+        ('UN', 'Unidade (Inteiro)'),
+        ('FR', 'Fração / Metro / Kg (Decimal)'),
+    ]
+
     nome = models.CharField(max_length=100)
     categoria = models.ForeignKey(Categoria, on_delete=models.SET_NULL, null=True)
+    tipo_venda = models.CharField(max_length=2, choices=TIPO_VENDA_CHOICES, default='UN', verbose_name="Tipo de Venda")
     preco_compra = models.DecimalField(max_digits=10, decimal_places=2, verbose_name="Preço de Custo")
     preco_venda = models.DecimalField(max_digits=10, decimal_places=2)
-    estoque_atual = models.IntegerField(default=0)
+    estoque_atual = models.DecimalField(max_digits=10, decimal_places=3, default=0)
     codigo = models.CharField(max_length=50, unique=True, blank=True, null=True)
     detalhes = models.CharField(max_length=200, blank=True)
 
@@ -49,7 +55,7 @@ class Venda(models.Model):
 class ItensVenda(models.Model):
     venda = models.ForeignKey(Venda, on_delete=models.CASCADE)
     produto = models.ForeignKey(Produto, on_delete=models.CASCADE)
-    quantidade = models.IntegerField()
+    quantidade = models.DecimalField(max_digits=10, decimal_places=3)
     preco_unitario = models.DecimalField(max_digits=10, decimal_places=2)
     subtotal = models.DecimalField(max_digits=10, decimal_places=2)
 
