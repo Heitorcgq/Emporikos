@@ -117,8 +117,8 @@
                 <i class="bi bi-check-lg fs-4"></i>
                 <span>CONFIRMAR PAGAMENTO</span>
             </button>
-            <a href="{% url 'frente_caixa' %}" class="btn btn-outline-danger border-0">
-                Cancelar e Voltar
+            <a href="{% url 'frente_caixa' venda.id %}" class="btn btn-outline-secondary btn-lg">
+                <i class="bi bi-arrow-left me-2"></i>Voltar ao Caixa
             </a>
         </div>
     </div>
@@ -141,7 +141,7 @@
                         <span>Imprimir Cupom</span>
                     </button>
                     
-                    <a href="{% url 'frente_caixa' %}" class="btn btn-outline-primary btn-lg d-flex align-items-center justify-content-center gap-2">
+                    <a href="{% url 'home_pdv' %}" class="btn btn-outline-primary btn-lg d-flex align-items-center justify-content-center gap-2">
                         <i class="bi bi-cart-plus fs-5"></i>
                         <span>Nova Venda</span>
                     </a>

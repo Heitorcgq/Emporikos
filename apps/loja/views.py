@@ -3,6 +3,7 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.contrib.auth.decorators import login_required, user_passes_test
+from django.views.decorators.http import require_POST
 from django.db.models import Sum, Count
 from .models import Produto, Venda, ItensVenda, Categoria
 from .forms import ProdutoForm, CategoriaForm, CadastroFuncionarioForm
@@ -77,9 +78,141 @@ def editar_funcionario(request, funcionario_id):
         'funcionario': funcionario
     })
 
+
 @login_required
-def frente_caixa(request):
-    return render(request, 'loja/pdv.html')
+@user_passes_test(checar_gerente, login_url='/pdv/')
+def excluir_funcionario(request, funcionario_id):
+    funcionario = get_object_or_404(User, id=funcionario_id)
+    
+    # Segurança: Impede excluir superusuários (Admin)
+    if funcionario.is_superuser:
+        messages.error(request, "Não é permitido excluir um Administrador do sistema.")
+        return redirect('catalogo_funcionarios')
+    
+    # Segurança: Impede excluir a si mesmo
+    if funcionario == request.user:
+        messages.error(request, "Você não pode excluir seu próprio usuário.")
+        return redirect('catalogo_funcionarios')
+
+    try:
+        nome = funcionario.username
+        funcionario.delete()
+        messages.success(request, f"Funcionário '{nome}' excluído com sucesso.")
+    except Exception as e:
+        messages.error(request, f"Erro ao excluir: {e}")
+        
+    return redirect('catalogo_funcionarios')
+
+@login_required
+def home_pdv(request):
+    """
+    Função 1: O porteiro.
+    Não mostra tela. Apenas acha a venda do usuário e manda ele para lá.
+    """
+    # 1. Tenta pegar a ÚLTIMA venda aberta deste usuário
+    venda_aberta = Venda.objects.filter(
+        vendedor=request.user, 
+        status='A'
+    ).order_by('-id').first() # O -id garante que pega a 66 e não a 60
+
+    if venda_aberta:
+        # Se achou, redireciona para a URL com o ID (ex: /pdv/66/)
+        return redirect('frente_caixa', venda_id=venda_aberta.id)
+    else:
+        # Se não tem nenhuma aberta, cria uma nova
+        nova_venda = Venda.objects.create(vendedor=request.user, status='A')
+        return redirect('frente_caixa', venda_id=nova_venda.id)
+
+@login_required
+def frente_caixa(request, venda_id):
+    """
+    Função 2: A tela do Caixa.
+    OBRIGATORIAMENTE recebe um ID.
+    """
+    # Garante que a venda existe e pertence ao usuário (segurança)
+    venda = get_object_or_404(Venda, id=venda_id, vendedor=request.user)
+
+    # Aqui você busca os itens já salvos dessa venda para mostrar na tela
+    itens = venda.itensvenda_set.all() # Ajuste conforme seu `related_name` no model
+
+    context = {
+        'venda': venda, # Passamos a venda inteira para o template
+        'itens': itens,
+        'venda_id': venda.id # Reforçando o ID para o JS usar
+    }
+    
+    return render(request, 'loja/pdv.html', context)
+
+
+
+
+@csrf_exempt # Ou use @require_POST se configurar o CSRF no fetch
+def api_adicionar_item(request, venda_id):
+    if request.method == 'POST':
+        data = json.loads(request.body)
+        produto_codigo = data.get('codigo')
+        
+        venda = get_object_or_404(Venda, id=venda_id)
+        # Tenta achar o produto pelo código ou devolve erro 404
+        produto = get_object_or_404(Produto, codigo=produto_codigo) 
+        
+        # Verifica se o item já existe na venda para apenas somar a quantidade
+        item_existente = venda.itensvenda_set.filter(produto=produto).first()
+        
+        if item_existente:
+            item_existente.quantidade += 1
+            item_existente.save()
+        else:
+            # Cria novo item
+            ItensVenda.objects.create(
+                venda=venda,
+                produto=produto,
+                quantidade=1,
+                preco_unitario=produto.preco_venda,
+                subtotal=produto.preco_venda # O save() do model já recalcula, mas garantimos aqui
+            )
+            
+        # Atualiza o total da venda
+        venda.valor_total = sum(item.subtotal for item in venda.itensvenda_set.all())
+        venda.valor_final = venda.valor_total # Reseta descontos parciais para evitar erro
+        venda.save()
+    
+        return JsonResponse({'status': 'ok'})
+    return JsonResponse({'status': 'erro'}, status=400)
+
+@csrf_exempt
+def api_remover_item(request, item_id):
+    if request.method == 'POST':
+        item = get_object_or_404(ItensVenda, id=item_id)
+        venda = item.venda
+        item.delete()
+        
+        # Recalcula total da venda
+        venda.valor_total = sum(i.subtotal for i in venda.itensvenda_set.all())
+        venda.valor_final = venda.valor_total
+        venda.save()
+        
+        return JsonResponse({'status': 'ok'})
+    return JsonResponse({'status': 'erro'}, status=400)
+
+@csrf_exempt
+def api_atualizar_quantidade(request, item_id):
+    if request.method == 'POST':
+        data = json.loads(request.body)
+        nova_qtd = float(data.get('quantidade'))
+        
+        item = get_object_or_404(ItensVenda, id=item_id)
+        item.quantidade = nova_qtd
+        item.save() # O save() do model ItensVenda já atualiza o subtotal
+        
+        # Atualiza total da venda
+        venda = item.venda
+        venda.valor_total = sum(i.subtotal for i in venda.itensvenda_set.all())
+        venda.valor_final = venda.valor_total
+        venda.save()
+        
+        return JsonResponse({'status': 'ok'})
+    return JsonResponse({'status': 'erro'}, status=400)
 
 @login_required
 @user_passes_test(checar_gerente, login_url='/pdv/')

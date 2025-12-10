@@ -1,5 +1,5 @@
 from django import forms
-from .models import Produto, Categoria
+from .models import Produto, Categoria, Funcionario
 from django.contrib.auth.models import User
 
 class ProdutoForm(forms.ModelForm):
@@ -37,7 +37,14 @@ class CategoriaForm(forms.ModelForm):
 
 class CadastroFuncionarioForm(forms.ModelForm):
     nome_completo = forms.CharField(label="Nome Completo", max_length=100, widget=forms.TextInput(attrs={'class': 'form-control'}))
-    # Senha agora é required=False para permitir deixar em branco na edição
+    
+    # CAMPO NOVO: TELEFONE
+    telefone = forms.CharField(
+        label="Telefone / WhatsApp",
+        required=False,
+        widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': '(XX) XXXXX-XXXX'})
+    )
+    
     senha = forms.CharField(label="Senha", required=False, widget=forms.PasswordInput(attrs={'class': 'form-control'}))
     
     CARGO_CHOICES = (
@@ -48,7 +55,7 @@ class CadastroFuncionarioForm(forms.ModelForm):
 
     class Meta:
         model = User
-        fields = ['username', 'email']
+        fields = ['username', 'email'] # O telefone NÃO entra aqui, pois é de outra tabela
         widgets = {
             'username': forms.TextInput(attrs={'class': 'form-control'}),
             'email': forms.EmailInput(attrs={'class': 'form-control'}),
@@ -56,24 +63,29 @@ class CadastroFuncionarioForm(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         super(CadastroFuncionarioForm, self).__init__(*args, **kwargs)
-        # Se estiver editando (instance existe), preenche os campos extras
+        # Se estiver editando, carrega os dados
         if self.instance and self.instance.pk:
             self.fields['nome_completo'].initial = f"{self.instance.first_name} {self.instance.last_name}".strip()
             self.fields['senha'].widget.attrs['placeholder'] = "Deixe em branco para manter a atual"
             
-            # Tenta descobrir o cargo atual
+            # Carrega o Cargo
             if self.instance.groups.filter(name='Gerente').exists():
                 self.fields['cargo'].initial = 'Gerente'
             else:
                 self.fields['cargo'].initial = 'Caixa'
+            
+            # Carrega o Telefone (se existir)
+            if hasattr(self.instance, 'funcionario'):
+                self.fields['telefone'].initial = self.instance.funcionario.telefone
 
     def save(self, commit=True):
         user = super(CadastroFuncionarioForm, self).save(commit=False)
         
-        # Só altera a senha se o campo foi preenchido
+        # Salva senha
         if self.cleaned_data.get('senha'):
             user.set_password(self.cleaned_data['senha'])
             
+        # Salva nome
         nomes = self.cleaned_data['nome_completo'].split()
         user.first_name = nomes[0]
         if len(nomes) > 1:
@@ -81,4 +93,9 @@ class CadastroFuncionarioForm(forms.ModelForm):
         
         if commit:
             user.save()
+            # SALVA O TELEFONE NA TABELA NOVA
+            func_profile, created = Funcionario.objects.get_or_create(usuario=user)
+            func_profile.telefone = self.cleaned_data['telefone']
+            func_profile.save()
+            
         return user

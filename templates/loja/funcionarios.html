@@ -1,67 +1,104 @@
 {% extends "core/base.html" %}
+{% load format_utils %}
 
 {% block title %}Funcionários | Emporikos{% endblock %}
 
 {% block content %}
 <div class="container">
     <div class="d-flex justify-content-between align-items-center mb-4">
-        <h2 class="text-primary fw-bold"><i class="bi bi-people-fill me-2"></i>Catálogo de Funcionários</h2>
-        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#modalFuncionario">
-            <i class="bi bi-person-plus-fill me-2"></i> Novo Funcionário
+        <div>
+            <h2 class="text-primary fw-bold mb-0">
+                <i class="bi bi-people-fill me-2"></i>Colaboradores
+            </h2>
+            <p class="text-muted small mb-0">Gerencie quem tem acesso ao sistema.</p>
+        </div>
+        
+        <button class="btn btn-primary shadow-sm" data-bs-toggle="modal" data-bs-target="#modalFuncionario">
+            <i class="bi bi-person-plus-fill me-2"></i> Novo Colaborador
         </button>
     </div>
 
     {% if messages %}
         {% for message in messages %}
-            <div class="alert alert-{{ message.tags }} alert-dismissible fade show">
-                {{ message }}
+            <div class="alert alert-{{ message.tags }} alert-dismissible fade show border-0 shadow-sm">
+                <i class="bi bi-info-circle-fill me-2"></i>{{ message }}
                 <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
             </div>
         {% endfor %}
     {% endif %}
 
-    <div class="panel p-0 overflow-hidden">
+    <div class="panel p-0 overflow-hidden shadow-sm">
         <div class="table-responsive">
             <table class="table table-hover align-middle mb-0">
-                <thead class="table-light">
+                <thead class="bg-light text-secondary">
                     <tr>
-                        <th class="ps-4">Usuário</th>
-                        <th>Nome</th>
-                        <th>Cargo</th>
-                        <th>Status</th>
-                        <th class="text-end pe-4">Ações</th> </tr>
+                        <th class="ps-4 py-3 text-uppercase small fw-bold">Usuário</th>
+                        <th class="py-3 text-uppercase small fw-bold">Nome Completo</th>
+                        
+                        <th class="py-3 text-uppercase small fw-bold">Email</th>
+                        <th class="py-3 text-uppercase small fw-bold">Telefone</th>
+                        
+                        <th class="py-3 text-uppercase small fw-bold">Cargo</th>
+                        <th class="py-3 text-uppercase small fw-bold text-center">Status</th>
+                        <th class="text-end pe-4 py-3 text-uppercase small fw-bold">Ações</th>
+                    </tr>
                 </thead>
                 <tbody>
                     {% for f in funcionarios %}
                     <tr>
-                        <td class="ps-4 fw-bold">{{ f.username }}</td>
-                        <td>{{ f.first_name }} {{ f.last_name }}</td>
+                        <td class="ps-4 fw-bold text-dark">{{ f.username }}</td>
+                        <td class="text-secondary">{{ f.first_name }} {{ f.last_name }}</td>
+                        
+                        <td class="text-muted small">{{ f.email|default:"-" }}</td>
+                        <td class="text-muted small">
+                            {% if f.funcionario.telefone %}
+                                <i class="bi bi-telephone me-1"></i>{{ f.funcionario.telefone|fone_br }}
+                            {% else %}
+                                -
+                            {% endif %}
+                        </td>
+
                         <td>
                             {% for grupo in f.groups.all %}
                                 {% if grupo.name == 'Gerente' %}
-                                    <span class="badge bg-primary">GERENTE</span>
+                                    <span class="badge bg-primary bg-opacity-10 text-primary border border-primary border-opacity-25 px-3">
+                                        <i class="bi bi-shield-lock-fill me-1"></i> GERENTE
+                                    </span>
                                 {% else %}
-                                    <span class="badge bg-secondary">CAIXA</span>
+                                    <span class="badge bg-secondary bg-opacity-10 text-secondary border border-secondary border-opacity-25 px-3">
+                                        <i class="bi bi-cart-fill me-1"></i> CAIXA
+                                    </span>
                                 {% endif %}
                             {% empty %}
                                 <span class="badge bg-light text-dark border">Sem Cargo</span>
                             {% endfor %}
                         </td>
-                        <td class="text-end pe-4">
+                        
+                        <td class="text-center">
                             {% if f.is_active %}
-                                <span class="text-success small fw-bold"><i class="bi bi-circle-fill"></i> Ativo</span>
+                                <span class="badge rounded-pill bg-success bg-opacity-10 text-success border border-success border-opacity-25">
+                                    <i class="bi bi-circle-fill" style="font-size: 0.5rem; vertical-align: middle;"></i> Ativo
+                                </span>
                             {% else %}
-                                <span class="text-danger small fw-bold"><i class="bi bi-circle-fill"></i> Inativo</span>
+                                <span class="badge rounded-pill bg-danger bg-opacity-10 text-danger border border-danger border-opacity-25">
+                                    Inativo
+                                </span>
                             {% endif %}
                         </td>
+
                         <td class="text-end pe-4">
-                            <a href="{% url 'editar_funcionario' f.id %}" class="btn btn-sm btn-outline-primary" title="Editar">
-                                <i class="bi bi-pencil-fill"></i>
+                            <a href="{% url 'editar_funcionario' f.id %}" class="btn btn-sm btn-outline-secondary border-0" title="Editar">
+                                <i class="bi bi-pencil-square fs-5"></i>
                             </a>
                         </td>
                     </tr>
                     {% empty %}
-                    <tr><td colspan="4" class="text-center py-4 text-muted">Nenhum funcionário cadastrado.</td></tr>
+                    <tr>
+                        <td colspan="7" class="text-center py-5 text-muted">
+                            <i class="bi bi-people display-4 d-block mb-3 opacity-25"></i>
+                            Nenhum funcionário cadastrado.
+                        </td>
+                    </tr>
                     {% endfor %}
                 </tbody>
             </table>
@@ -70,41 +107,49 @@
 </div>
 
 <div class="modal fade" id="modalFuncionario" tabindex="-1">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title fw-bold">Cadastrar Colaborador</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title fw-bold">
+                    <i class="bi bi-person-plus me-2"></i>Cadastrar Colaborador
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
             <form method="post">
                 {% csrf_token %}
-                <div class="modal-body">
+                <div class="modal-body p-4">
                     <div class="mb-3">
-                        {{ form.nome_completo.label_tag }}
+                        <label class="form-label fw-bold small text-secondary">Nome Completo</label>
                         {{ form.nome_completo }}
                     </div>
-                    <div class="row g-2 mb-3">
+                    
+                    <div class="mb-3">
+                        <label class="form-label fw-bold small text-secondary">Telefone / WhatsApp</label>
+                        {{ form.telefone }}
+                    </div>
+
+                    <div class="row g-3 mb-3">
                         <div class="col-6">
-                            {{ form.username.label_tag }}
+                            <label class="form-label fw-bold small text-secondary">Usuário (Login)</label>
                             {{ form.username }}
                         </div>
                         <div class="col-6">
-                            {{ form.cargo.label_tag }}
+                            <label class="form-label fw-bold small text-secondary">Cargo</label>
                             {{ form.cargo }}
                         </div>
                     </div>
                     <div class="mb-3">
-                        {{ form.email.label_tag }}
+                        <label class="form-label fw-bold small text-secondary">Email (Opcional)</label>
                         {{ form.email }}
                     </div>
                     <div class="mb-3">
-                        {{ form.senha.label_tag }}
+                        <label class="form-label fw-bold small text-secondary">Senha Inicial</label>
                         {{ form.senha }}
                     </div>
                 </div>
                 <div class="modal-footer bg-light">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                    <button type="submit" class="btn btn-primary">Salvar</button>
+                    <button type="button" class="btn btn-outline-secondary border-0" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary px-4">Salvar Cadastro</button>
                 </div>
             </form>
         </div>

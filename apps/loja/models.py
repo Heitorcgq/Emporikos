@@ -62,3 +62,10 @@ class ItensVenda(models.Model):
     def save(self, *args, **kwargs):
         self.subtotal = self.quantidade * self.preco_unitario
         super().save(*args, **kwargs)
+
+class Funcionario(models.Model):
+    usuario = models.OneToOneField(User, on_delete=models.CASCADE, related_name='funcionario')
+    telefone = models.CharField(max_length=20, blank=True, null=True)
+
+    def __str__(self):
+        return self.usuario.username
