@@ -4,18 +4,18 @@
 <div class="row h-100">
     <div class="col-md-8 d-flex flex-column gap-3">
         
-        <div class="panel" style="position: relative; z-index: 1050;">
+        <div class="panel" style="position: relative;"> 
             <label class="panel-label mb-2">Buscar Produto</label>
             <div class="input-group input-group-lg position-relative">
                 <span class="input-group-text bg-primary text-white border-primary">
                     <i class="bi bi-search"></i>
                 </span>
                 <input type="text" id="input-busca" class="form-control border-primary" 
-                       placeholder="Digite o código ou nome..." 
-                       autocomplete="off" autofocus>
+                    placeholder="Digite o código ou nome..." 
+                    autocomplete="off" autofocus>
                 
                 <ul id="lista-sugestoes" class="list-group position-absolute w-100 shadow-lg" 
-                    style="top: 100%; left: 0; display: none; max-height: 300px; overflow-y: auto;">
+                    style="top: 100%; left: 0; display: none; max-height: 300px; overflow-y: auto; z-index: 1050;">
                 </ul>
             </div>
         </div>

@@ -1,0 +1,49 @@
+{% extends "core/base.html" %}
+
+{% block title %}Editar Funcionário | Emporikos{% endblock %}
+
+{% block content %}
+<div class="container" style="max-width: 600px;">
+    <div class="panel p-4">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h3 class="fw-bold text-primary mb-0">Editar Funcionário</h3>
+            <a href="{% url 'catalogo_funcionarios' %}" class="btn btn-sm btn-outline-secondary">Voltar</a>
+        </div>
+
+        <form method="post">
+            {% csrf_token %}
+            
+            <div class="mb-3">
+                <label class="form-label fw-bold text-secondary small">Nome Completo</label>
+                {{ form.nome_completo }}
+            </div>
+
+            <div class="row g-3 mb-3">
+                <div class="col-md-6">
+                    <label class="form-label fw-bold text-secondary small">Usuário (Login)</label>
+                    {{ form.username }}
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label fw-bold text-secondary small">Cargo</label>
+                    {{ form.cargo }}
+                </div>
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label fw-bold text-secondary small">Email</label>
+                {{ form.email }}
+            </div>
+
+            <div class="mb-4">
+                <label class="form-label fw-bold text-secondary small">Nova Senha</label>
+                {{ form.senha }}
+                <div class="form-text text-muted">Deixe em branco se não quiser alterar a senha.</div>
+            </div>
+
+            <div class="d-grid gap-2">
+                <button type="submit" class="btn btn-primary btn-lg">Salvar Alterações</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

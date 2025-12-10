@@ -2,19 +2,87 @@ import json
 from django.shortcuts import render, redirect, get_object_or_404
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
-from django.contrib.auth.decorators import login_required
+from django.contrib.auth.decorators import login_required, user_passes_test
 from django.db.models import Sum, Count
 from .models import Produto, Venda, ItensVenda, Categoria
-from .forms import ProdutoForm, CategoriaForm
+from .forms import ProdutoForm, CategoriaForm, CadastroFuncionarioForm
 from datetime import datetime, timedelta
 from django.utils import timezone
 from django.db.models.functions import TruncDay
+from django.contrib.auth.models import Group, User
+from django.contrib import messages
+
+def checar_gerente(user):
+    return user.is_superuser or user.groups.filter(name='Gerente').exists()
+
+@login_required
+@user_passes_test(checar_gerente, login_url='/pdv/')
+def catalogo_funcionarios(request):
+    # Lógica de Cadastro (POST)
+    if request.method == 'POST':
+        form = CadastroFuncionarioForm(request.POST)
+        if form.is_valid():
+            try:
+                # 1. Cria o usuário
+                novo_usuario = form.save()
+                
+                # 2. Adiciona ao Grupo (Cargo)
+                cargo_nome = form.cleaned_data['cargo']
+                grupo = Group.objects.get(name=cargo_nome)
+                novo_usuario.groups.add(grupo)
+                
+                messages.success(request, f"Funcionário {novo_usuario.username} cadastrado com sucesso!")
+                return redirect('catalogo_funcionarios')
+            except Exception as e:
+                messages.error(request, f"Erro ao cadastrar: {e}")
+        else:
+            messages.error(request, "Erro no formulário. Verifique os dados.")
+    else:
+        form = CadastroFuncionarioForm()
+
+    # Lógica de Listagem (GET)
+    # Pega todos os usuários que não são superusuários (Admin técnico)
+    funcionarios = User.objects.filter(is_superuser=False).order_by('username')
+
+    return render(request, 'loja/funcionarios.html', {
+        'funcionarios': funcionarios,
+        'form': form
+    })
+
+@login_required
+@user_passes_test(checar_gerente, login_url='/pdv/')
+def editar_funcionario(request, funcionario_id):
+    funcionario = get_object_or_404(User, id=funcionario_id)
+    
+    if request.method == 'POST':
+        form = CadastroFuncionarioForm(request.POST, instance=funcionario)
+        if form.is_valid():
+            try:
+                usuario_salvo = form.save()
+                
+                # Atualizar Cargo (Remove os antigos e adiciona o novo)
+                usuario_salvo.groups.clear()
+                grupo_novo = Group.objects.get(name=form.cleaned_data['cargo'])
+                usuario_salvo.groups.add(grupo_novo)
+                
+                messages.success(request, f"Dados de {usuario_salvo.username} atualizados!")
+                return redirect('catalogo_funcionarios')
+            except Exception as e:
+                messages.error(request, f"Erro ao atualizar: {e}")
+    else:
+        form = CadastroFuncionarioForm(instance=funcionario)
+    
+    return render(request, 'loja/editar_funcionario.html', {
+        'form': form,
+        'funcionario': funcionario
+    })
 
 @login_required
 def frente_caixa(request):
     return render(request, 'loja/pdv.html')
 
 @login_required
+@user_passes_test(checar_gerente, login_url='/pdv/')
 def cadastro_produto(request):
     if request.method == 'POST':
         # Se o usuário enviou dados (clicou em Salvar)
@@ -153,35 +221,44 @@ def concluir_venda(request, venda_id):
     return JsonResponse({'status': 'erro'}, status=400)
 
 @login_required
+@user_passes_test(checar_gerente, login_url='/pdv/')
 def relatorio_vendas(request):
-    # Datas padrão: Do dia 1 do mês atual até hoje
-    hoje = timezone.now().date()
-    inicio_mes = hoje.replace(day=1)
+    # 1. Filtros Padrão (Datas)
+    data_inicio = request.GET.get('data_inicio')
+    data_fim = request.GET.get('data_fim')
+    vendedor_id = request.GET.get('vendedor')  # <--- NOVO: Pegamos o ID do vendedor
+
+    vendas = Venda.objects.all().order_by('-data_venda')
+
+    if data_inicio and data_fim:
+        vendas = vendas.filter(data_venda__range=[data_inicio, data_fim])
     
-    data_inicio = request.GET.get('data_inicio', inicio_mes.strftime('%Y-%m-%d'))
-    data_fim = request.GET.get('data_fim', hoje.strftime('%Y-%m-%d'))
+    # 2. Filtro por Vendedor (NOVO)
+    if vendedor_id:
+        vendas = vendas.filter(vendedor_id=vendedor_id)
+        vendedor_id = int(vendedor_id) # Converte para inteiro para marcar o select no HTML
 
-    # Filtra as vendas
-    vendas = Venda.objects.filter(
-        data_venda__gte=data_inicio,
-        data_venda__lte=data_fim
-    ).order_by('-data_venda')
+    # 3. Totais
+    total_faturado = vendas.aggregate(Sum('valor_final'))['valor_final__sum'] or 0
+    total_vendas = vendas.count()
+    ticket_medio = total_faturado / total_vendas if total_vendas > 0 else 0
 
-    # Calcula totais
-    total_faturamento = vendas.aggregate(Sum('valor_total'))['valor_total__sum'] or 0
-    total_pedidos = vendas.count()
+    # 4. Lista de Funcionários para o Dropdown (Apenas ativos)
+    funcionarios = User.objects.filter(is_active=True).order_by('username')
 
-    context = {
+    return render(request, 'loja/relatorio_vendas.html', {
         'vendas': vendas,
+        'total_faturado': total_faturado,
+        'ticket_medio': ticket_medio,
+        'total_vendas': total_vendas,
         'data_inicio': data_inicio,
         'data_fim': data_fim,
-        'total_faturamento': total_faturamento,
-        'total_pedidos': total_pedidos,
-    }
-    
-    return render(request, 'loja/relatorio_vendas.html', context)
+        'funcionarios': funcionarios,         # <--- Enviamos a lista
+        'vendedor_selecionado': vendedor_id,  # <--- Enviamos quem foi escolhido
+    })
 
 @login_required
+@user_passes_test(checar_gerente, login_url='/pdv/')
 def cadastro_categoria(request):
     if request.method == 'POST':
         form = CategoriaForm(request.POST)
@@ -200,6 +277,7 @@ def cadastro_categoria(request):
 
 
 @login_required
+@user_passes_test(checar_gerente, login_url='/pdv/')
 def relatorio_estoque(request):
     produtos = Produto.objects.all().order_by('nome')
     categorias = Categoria.objects.all().order_by('nome')
@@ -229,6 +307,7 @@ def relatorio_estoque(request):
 
 
 @login_required
+@user_passes_test(checar_gerente, login_url='/pdv/')
 def editar_produto(request, produto_id):
     # Busca o produto ou dá erro 404 se não existir
     produto = get_object_or_404(Produto, id=produto_id)
@@ -246,12 +325,14 @@ def editar_produto(request, produto_id):
     return render(request, 'loja/editar_produto.html', {'form': form, 'produto': produto})
 
 @login_required
+@user_passes_test(checar_gerente, login_url='/pdv/')
 def excluir_produto(request, produto_id):
     produto = get_object_or_404(Produto, id=produto_id)
     produto.delete()
     return redirect('relatorio_estoque')
 
 @login_required
+@user_passes_test(checar_gerente, login_url='/pdv/')
 def dashboard_vendas(request):
     # Data de corte (últimos 30 dias)
     data_limite = timezone.now() - timedelta(days=30)
@@ -289,7 +370,7 @@ def dashboard_vendas(request):
     ).order_by('-total_vendido')[:5]
     
     labels_prod = [p['produto__nome'] for p in top_produtos]
-    dados_prod = [p['total_vendido'] for p in top_produtos]
+    dados_prod = [float(p['total_vendido']) for p in top_produtos]
 
     context = {
         'datas_grafico': json.dumps(datas_grafico),

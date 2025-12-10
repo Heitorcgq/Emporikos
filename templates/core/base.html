@@ -1,5 +1,5 @@
 {% load static %}
-<!DOCTYPE html>
+{% load loja_permissoes %} <!DOCTYPE html>
 <html lang="pt-br">
   <head>
     <meta charset="utf-8">
@@ -12,113 +12,92 @@
     
     <style>
       :root {
-        /* --- PALETA CLEAN (Fundo Claro) --- */
-        --bg-body: #f4f6f8;       /* Fundo cinza bem clarinho para o site */
-        --surface-color: #ffffff; /* Fundo branco puro para os cards */
-        --border-color: #e0e0e0;  /* Bordas sutis */
-        
-        --text-primary: #1a1a1a;  /* Preto suave para textos principais */
-        --text-secondary: #666666; /* Cinza para textos secundários */
-        
-        --accent-color: #0d6efd;  /* Azul padrão para botões e destaques */
+        --bg-body: #f4f6f8;
+        --surface-color: #ffffff;
+        --border-color: #e0e0e0;
+        --text-primary: #1a1a1a;
+        --text-secondary: #666666;
+        --accent-color: #0d6efd;
       }
-
       body {
-        /* Removemos a imagem de fundo e deixamos uma cor sólida suave */
         background-color: var(--bg-body);
         color: var(--text-primary);
         font-family: "Inter", sans-serif;
         min-height: 100vh;
       }
-
-      /* Navbar Clean (Branca com linha cinza) */
       .navbar {
         background-color: #ffffff;
-        box-shadow: 0 1px 3px rgba(0,0,0,0.05); /* Sombra muito leve */
+        box-shadow: 0 1px 3px rgba(0,0,0,0.05);
         border-bottom: 1px solid var(--border-color);
       }
-      /* Logo Azul */
-      .navbar-brand { 
-          font-weight: 700; 
-          letter-spacing: 0.5px; 
-          color: var(--text-primary) !important; 
-      }
-      /* Links do Menu (Cinza escuro, ficam azul ao passar o mouse) */
-      .nav-link { 
-          color: var(--text-secondary) !important; 
-          font-weight: 500;
-      }
-      .nav-link:hover, .nav-link.active { 
-          color: var(--accent-color) !important; 
-      }
-
-      /* Estilos Gerais */
+      .navbar-brand { font-weight: 700; letter-spacing: 0.5px; color: var(--text-primary) !important; }
+      .nav-link { color: var(--text-secondary) !important; font-weight: 500; }
+      .nav-link:hover, .nav-link.active { color: var(--accent-color) !important; }
       .text-accent { color: var(--accent-color) !important; }
       main { padding: 30px 20px; }
-      
-      /* Paineis (Cards) - Brancos com sombra suave */
       .panel {
         background: var(--surface-color);
         border: 1px solid var(--border-color);
-        border-radius: 8px; /* Cantos arredondados padrão */
+        border-radius: 8px;
         padding: 20px;
-        /* Sombra leve para destacar do fundo cinza */
         box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04); 
       }
-      
       .panel-label {
-        font-size: 13px;
-        color: var(--text-secondary);
-        font-weight: 600;
-        text-transform: uppercase;
-        letter-spacing: 0.8px;
-        margin-bottom: 8px;
+        font-size: 13px; color: var(--text-secondary); font-weight: 600;
+        text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 8px;
       }
-      
-      .panel-value {
-        font-size: 32px;
-        font-weight: 700;
-        color: var(--text-primary);
-      }
-      
-      /* Tabela Clean */
-      .table { 
-          --bs-table-bg: transparent; 
-          color: var(--text-primary); 
-      }
-      .table thead th { 
-          color: var(--text-secondary); 
-          font-weight: 600;
-          background-color: #f8f9fa; /* Cabeçalho levemente cinza */
-          border-bottom: 2px solid var(--border-color);
-      }
-      .table td { 
-          border-bottom: 1px solid var(--border-color); 
-      }
-      
-      /* Inputs Padrão (Fundo branco) */
-      .form-control, .form-select {
-        background-color: #fff;
-        border: 1px solid #ced4da;
-        color: var(--text-primary);
-      }
-      .form-control:focus {
-        border-color: var(--accent-color);
-        box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.15);
-      }
-      
-      /* Ajuste para inputs desabilitados ou readonly */
-      .form-control:disabled, .form-control[readonly] {
-          background-color: #e9ecef;
-      }
+      .panel-value { font-size: 32px; font-weight: 700; color: var(--text-primary); }
+      .table { --bs-table-bg: transparent; color: var(--text-primary); }
+      .table thead th { color: var(--text-secondary); font-weight: 600; background-color: #f8f9fa; border-bottom: 2px solid var(--border-color); }
+      .table td { border-bottom: 1px solid var(--border-color); }
+      .form-control, .form-select { background-color: #fff; border: 1px solid #ced4da; color: var(--text-primary); }
+      .form-control:focus { border-color: var(--accent-color); box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.15); }
+      .form-control:disabled, .form-control[readonly] { background-color: #e9ecef; }
     </style>
   </head>
   <body>
     <nav class="navbar navbar-expand-lg">
       <div class="container-fluid">
-        <a class="navbar-brand" href="/">
-          <img src="{% static 'img/logo.png' %}" alt="Emporikos" style="height: 20px; width: auto;">
-        </a>
+        
+        {% if user.is_authenticated %}
+            <div class="dropdown">
+                <a class="navbar-brand dropdown-toggle d-flex align-items-center gap-2" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                    <img src="{% static 'img/logo.png' %}" alt="Emporikos" style="height: 28px; width: auto;">
+                </a>
+                
+                <ul class="dropdown-menu shadow border-0 mt-2">
+                    {% if user|eh_gerente %}
+                        <li><h6 class="dropdown-header text-uppercase small fw-bold text-secondary">Gestão</h6></li>
+                        <li>
+                            <a class="dropdown-item py-2" href="#">
+                                <i class="bi bi-people me-2 text-primary"></i> Catálogo de Clientes
+                            </a>
+                        </li>
+                        <li>
+                            <a class="dropdown-item py-2" href="{% url 'catalogo_funcionarios' %}">
+                                <i class="bi bi-receipt me-2 text-primary"></i> Catálogo de Funcionários
+                            </a>
+                        </li>
+                        <li>
+                            <a class="dropdown-item py-2" href="#">
+                                <i class="bi bi-truck me-2 text-primary"></i> Fornecedores
+                            </a>
+                        </li>
+                        <li><hr class="dropdown-divider"></li>
+                    {% endif %}
+                    
+                    <li>
+                        <a class="dropdown-item py-2" href="/">
+                            <i class="bi bi-house me-2"></i> Início
+                        </a>
+                    </li>
+                </ul>
+            </div>
+        {% else %}
+            <a class="navbar-brand" href="/">
+                <img src="{% static 'img/logo.png' %}" alt="Emporikos" style="height: 28px; width: auto;">
+            </a>
+        {% endif %}
         
         <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarMain">
             <span class="navbar-toggler-icon"></span>
@@ -127,45 +106,51 @@
         <div class="collapse navbar-collapse" id="navbarMain">
           <ul class="navbar-nav ms-auto align-items-center">
               {% if user.is_authenticated %}
+                  
                   <li class="nav-item">
                       <a class="nav-link" href="{% url 'frente_caixa' %}">
                           <i class="bi bi-cart me-1"></i> Caixa
                       </a>
                   </li>
-                  <li class="nav-item">
-                      <a class="nav-link" href="{% url 'cadastro_produto' %}">
-                          <i class="bi bi-plus-circle me-1"></i> Produtos
-                      </a>
-                  </li>
-                  <li class="nav-item">
-                      <a class="nav-link" href="{% url 'cadastro_categoria' %}">
-                          <i class="bi bi-tags me-1"></i> Categorias
-                      </a>
-                  </li>
-                  <li class="nav-item">
-                      <a class="nav-link" href="{% url 'relatorio_vendas' %}">
-                          <i class="bi bi-file-earmark-text me-1"></i> Relatórios
-                      </a>
-                  </li>
-                  <li class="nav-item">
-                      <a class="nav-link" href="{% url 'relatorio_estoque' %}">
-                          <i class="bi bi-box-seam me-1"></i> Estoque
-                      </a>
-                  </li>
 
-                  <li class="nav-item mx-2 text-secondary">|</li>
+                  {% if user|eh_gerente %}
+                      <li class="nav-item">
+                          <a class="nav-link" href="{% url 'cadastro_produto' %}">
+                              <i class="bi bi-plus-circle me-1"></i> Produtos
+                          </a>
+                      </li>
+                      <li class="nav-item">
+                          <a class="nav-link" href="{% url 'cadastro_categoria' %}">
+                              <i class="bi bi-tags me-1"></i> Categorias
+                          </a>
+                      </li>
+                      <li class="nav-item">
+                          <a class="nav-link" href="{% url 'relatorio_vendas' %}">
+                              <i class="bi bi-file-earmark-text me-1"></i> Relatórios
+                          </a>
+                      </li>
+                      <li class="nav-item">
+                          <a class="nav-link" href="{% url 'relatorio_estoque' %}">
+                              <i class="bi bi-box-seam me-1"></i> Estoque
+                          </a>
+                      </li>
+                  {% endif %}
+
+                  <li class="nav-item mx-2 text-secondary d-none d-lg-block">|</li>
 
                   <li class="nav-item dropdown">
                       <a class="nav-link dropdown-toggle fw-bold text-dark" href="#" role="button" data-bs-toggle="dropdown">
                           <i class="bi bi-person-circle me-1 text-secondary"></i> {{ user.username|title }}
                       </a>
                       <ul class="dropdown-menu dropdown-menu-end shadow border-0">
+                          {% if user.is_staff %}
                           <li>
                               <a class="dropdown-item" href="/admin/">
                                   <i class="bi bi-gear me-2"></i> Administração
                               </a>
                           </li>
                           <li><hr class="dropdown-divider"></li>
+                          {% endif %}
                           <li>
                               <form method="post" action="{% url 'logout' %}">
                                   {% csrf_token %}

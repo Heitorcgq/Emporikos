@@ -86,7 +86,7 @@
                 </thead>
                 <tbody>
                     {% for p in produtos %}
-                    <tr class="{% if p.estoque_atual <= 0 %}table-danger bg-opacity-10{% elif p.estoque_atual <= 5 %}table-warning bg-opacity-10{% endif %}">
+                    <tr class="{% if p.estoque_atual <= 0 %}table-danger bg-opacity-10{% elif p.estoque_atual <= 10 %}table-warning bg-opacity-10{% endif %}">
                         <td class="ps-4 text-secondary"><small>{{ p.codigo|default:"-" }}</small></td>
                         <td>
                             <div class="fw-bold text-primary">
@@ -104,7 +104,7 @@
                         <td class="text-center pe-4">
                             {% if p.estoque_atual <= 0 %}
                                 <span class="badge bg-danger">ESGOTADO</span>
-                            {% elif p.estoque_atual <= 5 %}
+                            {% elif p.estoque_atual <= 10 %}
                                 <span class="badge bg-warning text-dark">{{ p.estoque_atual }} (Baixo)</span>
                             {% else %}
                                 <span class="fw-bold fs-5 text-secondary">{{ p.estoque_atual }}</span>
