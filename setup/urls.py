@@ -18,6 +18,7 @@ urlpatterns = [
     path('api/pdv/adicionar/<int:venda_id>/', views.api_adicionar_item, name='api_adicionar_item'),
     path('api/pdv/remover/<int:item_id>/', views.api_remover_item, name='api_remover_item'),
     path('api/pdv/atualizar-qtd/<int:item_id>/', views.api_atualizar_quantidade, name='api_atualizar_quantidade'),
+    path('api/pdv/limpar/<int:venda_id>/', views.api_limpar_venda, name='api_limpar_venda'),
 
     # --- CADASTROS E RELATÓRIOS ---
     path('produtos/novo/', views.cadastro_produto, name='cadastro_produto'),

@@ -214,6 +214,22 @@ def api_atualizar_quantidade(request, item_id):
         return JsonResponse({'status': 'ok'})
     return JsonResponse({'status': 'erro'}, status=400)
 
+@csrf_exempt
+def api_limpar_venda(request, venda_id):
+    if request.method == 'POST':
+        venda = get_object_or_404(Venda, id=venda_id)
+        
+        # Apaga todos os itens desta venda
+        venda.itensvenda_set.all().delete()
+        
+        # Zera os totais
+        venda.valor_total = 0
+        venda.valor_final = 0
+        venda.save()
+        
+        return JsonResponse({'status': 'ok'})
+    return JsonResponse({'status': 'erro'}, status=400)
+
 @login_required
 @user_passes_test(checar_gerente, login_url='/pdv/')
 def cadastro_produto(request):
