@@ -27,11 +27,18 @@
         </div>
     </div>
 
-    <div class="row">
-        <div class="col-12">
-            <div class="panel p-4 border rounded shadow-sm bg-white">
-                <h5 class="fw-bold text-secondary mb-4">Top 5 Produtos Mais Vendidos</h5>
+    <div class="row g-4">
+        <div class="col-lg-6">
+            <div class="panel h-100 p-4 border rounded shadow-sm bg-white">
+                <h5 class="fw-bold text-secondary mb-4">Top 5 Produtos (Qtd)</h5>
                 <canvas id="graficoProdutos" style="max-height: 250px;"></canvas>
+            </div>
+        </div>
+
+        <div class="col-lg-6">
+            <div class="panel h-100 p-4 border rounded shadow-sm bg-white">
+                <h5 class="fw-bold text-secondary mb-4">Ranking Vendedores (R$)</h5>
+                <canvas id="graficoVendedores" style="max-height: 250px;"></canvas>
             </div>
         </div>
     </div>
@@ -82,7 +89,7 @@
         }
     });
 
-    // --- 3. Gráfico de Barras (Produtos) ---
+    // --- 3. Gráfico de Barras (Produtos - Horizontal) ---
     const ctxProd = document.getElementById('graficoProdutos');
     new Chart(ctxProd, {
         type: 'bar',
@@ -99,6 +106,42 @@
             responsive: true,
             indexAxis: 'y', // Barra horizontal
             scales: { x: { beginAtZero: true } }
+        }
+    });
+
+    // --- 4. Gráfico de Barras (Vendedores - Vertical) ---
+    const ctxVend = document.getElementById('graficoVendedores');
+    new Chart(ctxVend, {
+        type: 'bar', // Barra vertical
+        data: {
+            labels: {{ labels_vend|safe }},
+            datasets: [{
+                label: 'Total Vendido (R$)',
+                data: {{ dados_vend|safe }},
+                backgroundColor: [
+                    '#FFD700', // Ouro
+                    '#C0C0C0', // Prata
+                    '#CD7F32', // Bronze
+                    '#0d6efd', // Azul padrão
+                    '#0d6efd'
+                ],
+                borderRadius: 4,
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            scales: { y: { beginAtZero: true } },
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            return 'R$ ' + context.raw.toFixed(2);
+                        }
+                    }
+                }
+            }
         }
     });
 </script>

@@ -54,9 +54,9 @@
             </div>
 
             <div class="d-grid gap-2">
-                <a href="{% url 'checkout' venda_id=venda.id %}" class="btn btn-primary btn-lg py-3 shadow-sm">
+                <button class="btn btn-primary btn-lg py-3 shadow-sm" onclick="irParaCheckout()">
                     <i class="bi bi-arrow-right-circle-fill me-2"></i> AVANÇAR P/ PAGAMENTO (F2)
-                </a>
+                </button>
                 
                 <button class="btn btn-outline-danger btn-lg py-3" onclick="limparVenda()">
                     <i class="bi bi-trash me-2"></i> Limpar
@@ -79,7 +79,7 @@
             id_item_venda: {{ item.id }},
             codigo: "{{ item.produto.codigo }}",
             nome: "{{ item.produto.nome }}",
-            detalhes: "{{ item.produto.detalhes|default_if_none:'' }}", // Adicionamos detalhes aqui
+            detalhes: "{{ item.produto.detalhes|default_if_none:'' }}",
             tipo: "{{ item.produto.tipo_venda }}", 
             preco: {{ item.preco_unitario|stringformat:".2f" }}, 
             quantidade: {{ item.quantidade|stringformat:".3f" }}
@@ -192,12 +192,18 @@
         if (response.ok) window.location.reload();
     }
 
+    // ALTERAÇÃO: Adicionado keepalive: true para garantir que salve mesmo mudando de página
     async function atualizarQtdServidor(itemVendaId, novaQtd) {
-        await fetch(`/api/pdv/atualizar-qtd/${itemVendaId}/`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': CSRF_TOKEN },
-            body: JSON.stringify({ quantidade: novaQtd })
-        });
+        try {
+            await fetch(`/api/pdv/atualizar-qtd/${itemVendaId}/`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': CSRF_TOKEN },
+                body: JSON.stringify({ quantidade: novaQtd }),
+                keepalive: true // <--- ISSO É CRUCIAL PARA O SEU PROBLEMA
+            });
+        } catch (e) {
+            console.error("Erro ao salvar quantidade:", e);
+        }
     }
 
     async function limparVenda() {
@@ -207,7 +213,7 @@
         if (response.ok) window.location.reload();
     }
 
-    // --- 4. RENDERIZAÇÃO DA TABELA (COM VISUAL RESTAURADO) ---
+    // --- 4. RENDERIZAÇÃO DA TABELA ---
 
     function renderizarTabela() {
         const tbody = document.getElementById('tabela-itens');
@@ -220,7 +226,6 @@
             total += subtotal;
             qtdItens += 1;
 
-            // Define passo da quantidade
             let step, min;
             if (item.tipo === 'UN') {
                 step = '1'; min = '1';
@@ -228,7 +233,6 @@
                 step = '0.001'; min = '0.001';
             }
 
-            // HTML RESTAURADO
             tbody.innerHTML += `
             <tr>
                 <td class="ps-4 fw-bold text-secondary font-monospace" style="vertical-align: middle;">
@@ -245,7 +249,7 @@
 
                 <td class="text-center" style="vertical-align: middle;">
                     <input type="number" step="${step}" min="${min}"
-                           class="form-control form-control-sm text-center d-inline-block border-secondary" 
+                           class="form-control form-control-sm text-center d-inline-block border-secondary input-qtd" 
                            style="width: 80px;"
                            value="${item.quantidade}"
                            onchange="atualizarLocalEBackend(${item.id_item_venda}, this.value, '${item.tipo}')">
@@ -267,7 +271,6 @@
             </tr>`;
         });
 
-        // Atualiza Totais
         const totalFmt = total.toLocaleString('pt-BR', {style:'currency', currency:'BRL'});
         document.getElementById('visor-total').innerText = totalFmt;
         document.getElementById('total-itens-badge').innerText = `${qtdItens} itens`;
@@ -284,14 +287,29 @@
         const item = carrinho.find(i => i.id_item_venda === id);
         if(item) {
             item.quantidade = novaQtd;
+            // Atualiza UI localmente para feedback instantâneo
             renderizarTabela(); 
+            // Salva no banco
             atualizarQtdServidor(id, novaQtd);
         }
     }
 
+    // --- NOVA FUNÇÃO DE CHECKOUT ---
+    function irParaCheckout() {
+        // 1. Força a perda de foco de qualquer input ativo para garantir que o 'onchange' dispare
+        if (document.activeElement) {
+            document.activeElement.blur();
+        }
+
+        // 2. Pequeno delay (300ms) para garantir que o fetch do onchange saiu
+        setTimeout(() => {
+            window.location.href = "{% url 'checkout' venda_id=venda.id %}";
+        }, 300);
+    }
+
     document.addEventListener('keydown', e => {
         if(e.key === 'F2') {
-            window.location.href = "{% url 'checkout' venda_id=venda.id %}";
+            irParaCheckout(); // Agora usa a função segura
         }
     });
 

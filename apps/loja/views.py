@@ -1,10 +1,11 @@
 import json
+from decimal import Decimal
 from django.shortcuts import render, redirect, get_object_or_404
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.views.decorators.http import require_POST
-from django.db.models import Sum, Count
+from django.db.models import Sum, Count, Q
 from .models import Produto, Venda, ItensVenda, Categoria
 from .forms import ProdutoForm, CategoriaForm, CadastroFuncionarioForm
 from datetime import datetime, timedelta
@@ -12,6 +13,7 @@ from django.utils import timezone
 from django.db.models.functions import TruncDay
 from django.contrib.auth.models import Group, User
 from django.contrib import messages
+from django.db import transaction
 
 def checar_gerente(user):
     return user.is_superuser or user.groups.filter(name='Gerente').exists()
@@ -106,22 +108,20 @@ def excluir_funcionario(request, funcionario_id):
 @login_required
 def home_pdv(request):
     """
-    Função 1: O porteiro.
-    Não mostra tela. Apenas acha a venda do usuário e manda ele para lá.
+    Função 1: O porteiro Inteligente.
     """
-    # 1. Tenta pegar a ÚLTIMA venda aberta deste usuário
-    venda_aberta = Venda.objects.filter(
-        vendedor=request.user, 
-        status='A'
-    ).order_by('-id').first() # O -id garante que pega a 66 e não a 60
+    usuario = request.user
 
-    if venda_aberta:
-        # Se achou, redireciona para a URL com o ID (ex: /pdv/66/)
-        return redirect('frente_caixa', venda_id=venda_aberta.id)
-    else:
-        # Se não tem nenhuma aberta, cria uma nova
-        nova_venda = Venda.objects.create(vendedor=request.user, status='A')
-        return redirect('frente_caixa', venda_id=nova_venda.id)
+    # 1. Busca qualquer venda pendente deste usuário
+    venda_pendente = Venda.objects.filter(vendedor=usuario, status='P').first()
+
+    if venda_pendente:
+        # Se achou uma pendente, usa ela mesma (não cria outra)
+        return redirect('frente_caixa', venda_id=venda_pendente.id)
+    
+    # 2. Se não tem nenhuma pendente, cria uma nova
+    nova_venda = Venda.objects.create(vendedor=usuario, status='P')
+    return redirect('frente_caixa', venda_id=nova_venda.id)
 
 @login_required
 def frente_caixa(request, venda_id):
@@ -199,7 +199,7 @@ def api_remover_item(request, item_id):
 def api_atualizar_quantidade(request, item_id):
     if request.method == 'POST':
         data = json.loads(request.body)
-        nova_qtd = float(data.get('quantidade'))
+        nova_qtd = Decimal(str(data.get('quantidade')))
         
         item = get_object_or_404(ItensVenda, id=item_id)
         item.quantidade = nova_qtd
@@ -324,6 +324,7 @@ def checkout(request, venda_id):
         
     return render(request, 'loja/checkout.html', {'venda': venda})
 
+@transaction.atomic
 @csrf_exempt
 def concluir_venda(request, venda_id):
     """Finaliza a venda e BAIXA O ESTOQUE (com proteção contra negativo infinito)."""
@@ -340,6 +341,7 @@ def concluir_venda(request, venda_id):
         venda.acrescimo = float(dados.get('acrescimo', 0))
         venda.valor_final = float(dados.get('valor_final', venda.valor_total))
         venda.forma_pagamento = dados.get('forma_pagamento', 'DIN')
+        venda.data_venda = timezone.now()
         venda.status = 'C' # Concluída
         venda.save()
         
@@ -375,24 +377,29 @@ def relatorio_vendas(request):
     # 1. Filtros Padrão (Datas)
     data_inicio = request.GET.get('data_inicio')
     data_fim = request.GET.get('data_fim')
-    vendedor_id = request.GET.get('vendedor')  # <--- NOVO: Pegamos o ID do vendedor
+    vendedor_id = request.GET.get('vendedor')
 
-    vendas = Venda.objects.all().order_by('-data_venda')
+    # --- ALTERAÇÃO AQUI ---
+    # Antes era: Venda.objects.all()...
+    # Agora filtramos apenas as CONCLUÍDAS ('C')
+    vendas = Venda.objects.filter(status='C').order_by('-data_venda')
+    # ----------------------
 
     if data_inicio and data_fim:
+        # Dica extra: Adicionei "date" no filtro para garantir que pegue o dia inteiro
         vendas = vendas.filter(data_venda__range=[data_inicio, data_fim])
     
-    # 2. Filtro por Vendedor (NOVO)
+    # 2. Filtro por Vendedor
     if vendedor_id:
         vendas = vendas.filter(vendedor_id=vendedor_id)
-        vendedor_id = int(vendedor_id) # Converte para inteiro para marcar o select no HTML
+        vendedor_id = int(vendedor_id)
 
     # 3. Totais
     total_faturado = vendas.aggregate(Sum('valor_final'))['valor_final__sum'] or 0
     total_vendas = vendas.count()
     ticket_medio = total_faturado / total_vendas if total_vendas > 0 else 0
 
-    # 4. Lista de Funcionários para o Dropdown (Apenas ativos)
+    # 4. Lista de Funcionários para o Dropdown
     funcionarios = User.objects.filter(is_active=True).order_by('username')
 
     return render(request, 'loja/relatorio_vendas.html', {
@@ -402,8 +409,8 @@ def relatorio_vendas(request):
         'total_vendas': total_vendas,
         'data_inicio': data_inicio,
         'data_fim': data_fim,
-        'funcionarios': funcionarios,         # <--- Enviamos a lista
-        'vendedor_selecionado': vendedor_id,  # <--- Enviamos quem foi escolhido
+        'funcionarios': funcionarios,
+        'vendedor_selecionado': vendedor_id,
     })
 
 @login_required
@@ -431,14 +438,31 @@ def relatorio_estoque(request):
     produtos = Produto.objects.all().order_by('nome')
     categorias = Categoria.objects.all().order_by('nome')
 
+    # 1. Filtro por Categoria
     categoria_id = request.GET.get('categoria')
     if categoria_id:
         produtos = produtos.filter(categoria_id=categoria_id)
     
+    # 2. Filtro por Termo (Nome ou Código)
+    termo = request.GET.get('termo')
+    if termo:
+        produtos = produtos.filter(
+            Q(nome__icontains=termo) | Q(codigo__icontains=termo)
+        )
+
+    # 3. Filtros de Status (Baixo ou Esgotado)
+    esgotado = request.GET.get('esgotado') 
     baixo_estoque = request.GET.get('baixo')
-    if baixo_estoque:
+    
+    if esgotado and baixo_estoque:
         produtos = produtos.filter(estoque_atual__lte=10)
     
+    elif esgotado:
+        produtos = produtos.filter(estoque_atual__lte=0)
+        
+    elif baixo_estoque:
+        produtos = produtos.filter(estoque_atual__lte=10, estoque_atual__gt=0)
+    # Totais
     valor_total_estoque = 0
     for p in produtos:
         valor_total_estoque += (p.preco_compra * p.estoque_atual)
@@ -449,7 +473,9 @@ def relatorio_estoque(request):
         'valor_total_estoque': valor_total_estoque,
         'total_itens': produtos.count(),
         'filtro_categoria': int(categoria_id) if categoria_id else None,
-        'filtro_baixo': baixo_estoque
+        'filtro_baixo': baixo_estoque,
+        'filtro_esgotado': esgotado,
+        'termo_busca': termo
     }
     
     return render(request, 'loja/relatorio_estoque.html', context)
@@ -521,6 +547,17 @@ def dashboard_vendas(request):
     labels_prod = [p['produto__nome'] for p in top_produtos]
     dados_prod = [float(p['total_vendido']) for p in top_produtos]
 
+    # 4. TOP VENDEDORES (R$)
+    top_vendedores = Venda.objects.filter(
+        data_venda__gte=data_limite, 
+        status='C'
+    ).values('vendedor__username').annotate(
+        total_faturado=Sum('valor_final') # Soma o valor final real
+    ).order_by('-total_faturado')[:5]
+
+    labels_vend = [v['vendedor__username'] for v in top_vendedores]
+    dados_vend = [float(v['total_faturado']) for v in top_vendedores]
+
     context = {
         'datas_grafico': json.dumps(datas_grafico),
         'valores_grafico': json.dumps(valores_grafico),
@@ -528,6 +565,8 @@ def dashboard_vendas(request):
         'dados_pgto': json.dumps(dados_pgto),
         'labels_prod': json.dumps(labels_prod),
         'dados_prod': json.dumps(dados_prod),
+        'labels_vend': json.dumps(labels_vend), 
+        'dados_vend': json.dumps(dados_vend),
     }
     
     return render(request, 'loja/dashboard_vendas.html', context)
