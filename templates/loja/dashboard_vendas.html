@@ -2,6 +2,7 @@
 
 {% block content %}
 <div class="container">
+    
     <div class="d-flex justify-content-between align-items-center mb-4">
         <h2 class="text-dark fw-bold"><i class="bi bi-graph-up-arrow me-2 text-primary"></i>Dashboard de Vendas</h2>
         <a href="{% url 'relatorio_vendas' %}" class="btn btn-primary w-10">
@@ -9,10 +10,55 @@
         </a>
     </div>
 
+    <div class="panel p-3 mb-4 bg-white border rounded shadow-sm">
+        <form method="get" class="row g-3 align-items-center">
+            <div class="col-auto">
+                <label class="fw-bold text-secondary me-2"><i class="bi bi-calendar3"></i> Filtrar:</label>
+            </div>
+            
+            <div class="col-auto">
+                <select name="dia" class="form-select form-select-sm">
+                    <option value="">Todos os Dias</option>
+                    {% for dia in lista_dias %}
+                        <option value="{{ dia }}" {% if dia_selecionado == dia %}selected{% endif %}>
+                            {{ dia }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="col-auto">
+                <select name="mes" class="form-select form-select-sm">
+                    {% for num, nome in lista_meses %}
+                        <option value="{{ num }}" {% if mes_selecionado == num %}selected{% endif %}>
+                            {{ nome }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="col-auto">
+                <select name="ano" class="form-select form-select-sm">
+                    {% for ano in lista_anos %}
+                        <option value="{{ ano }}" {% if ano_selecionado == ano %}selected{% endif %}>
+                            {{ ano }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="col-auto">
+                <button type="submit" class="btn btn-primary btn-sm">
+                    <i class="bi bi-filter"></i> Atualizar
+                </button>
+            </div>
+        </form>
+    </div>
+
     <div class="row g-4 mb-4">
         <div class="col-lg-8">
             <div class="panel h-100 p-4 border rounded shadow-sm bg-white">
-                <h5 class="fw-bold text-secondary mb-4">Faturamento (Últimos 30 Dias)</h5>
+                <h5 class="fw-bold text-secondary mb-4">{{ titulo_grafico1 }}</h5>
                 <canvas id="graficoVendas" style="height: 300px; width: 100%;"></canvas>
             </div>
         </div>
@@ -27,7 +73,7 @@
         </div>
     </div>
 
-    <div class="row g-4">
+    <div class="row g-4 mb-4">
         <div class="col-lg-6">
             <div class="panel h-100 p-4 border rounded shadow-sm bg-white">
                 <h5 class="fw-bold text-secondary mb-4">Top 5 Produtos (Qtd)</h5>
@@ -47,102 +93,98 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <script>
-    // --- 1. Gráfico de Linha (Faturamento) ---
+    // --- 1. Gráfico de Linha (Dinâmico: Dia ou Hora) ---
     const ctxVendas = document.getElementById('graficoVendas');
-    new Chart(ctxVendas, {
-        type: 'line',
-        data: {
-            labels: {{ datas_grafico|safe }},
-            datasets: [{
-                label: 'Faturamento (R$)',
-                data: {{ valores_grafico|safe }},
-                borderColor: '#0d6efd',
-                backgroundColor: 'rgba(13, 110, 253, 0.1)',
-                borderWidth: 2,
-                fill: true,
-                tension: 0.4 // Curva suave
-            }]
-        },
-        options: {
-            responsive: true,
-            plugins: { legend: { display: false } },
-            scales: { y: { beginAtZero: true } }
-        }
-    });
+    if (ctxVendas) {
+        new Chart(ctxVendas, {
+            type: 'line',
+            data: {
+                labels: {{ datas_grafico|safe }},
+                datasets: [{
+                    label: 'Faturamento (R$)',
+                    data: {{ valores_grafico|safe }},
+                    borderColor: '#0d6efd',
+                    backgroundColor: 'rgba(13, 110, 253, 0.1)',
+                    borderWidth: 2,
+                    fill: true,
+                    tension: 0.3
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: { legend: { display: false } },
+                scales: { 
+                    y: { beginAtZero: true, grid: { borderDash: [2, 4] } },
+                    x: { grid: { display: false } }
+                }
+            }
+        });
+    }
 
     // --- 2. Gráfico de Rosca (Pagamento) ---
     const ctxPgto = document.getElementById('graficoPagamento');
-    new Chart(ctxPgto, {
-        type: 'doughnut',
-        data: {
-            labels: {{ labels_pgto|safe }},
-            datasets: [{
-                data: {{ dados_pgto|safe }},
-                backgroundColor: ['#0d6efd', '#198754', '#ffc107', '#dc3545'],
-                borderWidth: 0
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: { legend: { position: 'bottom' } }
-        }
-    });
+    if (ctxPgto) {
+        new Chart(ctxPgto, {
+            type: 'doughnut',
+            data: {
+                labels: {{ labels_pgto|safe }},
+                datasets: [{
+                    data: {{ dados_pgto|safe }},
+                    backgroundColor: ['#0d6efd', '#198754', '#ffc107', '#dc3545'],
+                    borderWidth: 0
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { position: 'bottom' } }
+            }
+        });
+    }
 
     // --- 3. Gráfico de Barras (Produtos - Horizontal) ---
     const ctxProd = document.getElementById('graficoProdutos');
-    new Chart(ctxProd, {
-        type: 'bar',
-        data: {
-            labels: {{ labels_prod|safe }},
-            datasets: [{
-                label: 'Unidades Vendidas',
-                data: {{ dados_prod|safe }},
-                backgroundColor: '#6c757d',
-                borderRadius: 4
-            }]
-        },
-        options: {
-            responsive: true,
-            indexAxis: 'y', // Barra horizontal
-            scales: { x: { beginAtZero: true } }
-        }
-    });
+    if (ctxProd) {
+        new Chart(ctxProd, {
+            type: 'bar',
+            data: {
+                labels: {{ labels_prod|safe }},
+                datasets: [{
+                    label: 'Unidades',
+                    data: {{ dados_prod|safe }},
+                    backgroundColor: '#6c757d',
+                    borderRadius: 4
+                }]
+            },
+            options: {
+                responsive: true,
+                indexAxis: 'y',
+                scales: { x: { beginAtZero: true } }
+            }
+        });
+    }
 
     // --- 4. Gráfico de Barras (Vendedores - Vertical) ---
     const ctxVend = document.getElementById('graficoVendedores');
-    new Chart(ctxVend, {
-        type: 'bar', // Barra vertical
-        data: {
-            labels: {{ labels_vend|safe }},
-            datasets: [{
-                label: 'Total Vendido (R$)',
-                data: {{ dados_vend|safe }},
-                backgroundColor: [
-                    '#FFD700', // Ouro
-                    '#C0C0C0', // Prata
-                    '#CD7F32', // Bronze
-                    '#0d6efd', // Azul padrão
-                    '#0d6efd'
-                ],
-                borderRadius: 4,
-                borderWidth: 1
-            }]
-        },
-        options: {
-            responsive: true,
-            scales: { y: { beginAtZero: true } },
-            plugins: {
-                legend: { display: false },
-                tooltip: {
-                    callbacks: {
-                        label: function(context) {
-                            return 'R$ ' + context.raw.toFixed(2);
-                        }
-                    }
-                }
+    if (ctxVend) {
+        new Chart(ctxVend, {
+            type: 'bar',
+            data: {
+                labels: {{ labels_vend|safe }},
+                datasets: [{
+                    label: 'Total (R$)',
+                    data: {{ dados_vend|safe }},
+                    backgroundColor: ['#FFD700', '#C0C0C0', '#CD7F32', '#0d6efd', '#0d6efd'],
+                    borderRadius: 4,
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                scales: { y: { beginAtZero: true } },
+                plugins: { legend: { display: false } }
             }
-        }
-    });
+        });
+    }
 </script>
 {% endblock %}

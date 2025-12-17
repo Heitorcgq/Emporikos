@@ -1,4 +1,5 @@
 import json
+import calendar
 from decimal import Decimal
 from django.shortcuts import render, redirect, get_object_or_404
 from django.http import JsonResponse
@@ -14,6 +15,7 @@ from django.db.models.functions import TruncDay
 from django.contrib.auth.models import Group, User
 from django.contrib import messages
 from django.db import transaction
+from django.db.models.functions import TruncDay, TruncHour
 
 def checar_gerente(user):
     return user.is_superuser or user.groups.filter(name='Gerente').exists()
@@ -509,36 +511,79 @@ def excluir_produto(request, produto_id):
 @login_required
 @user_passes_test(checar_gerente, login_url='/pdv/')
 def dashboard_vendas(request):
-    # Data de corte (últimos 30 dias)
-    data_limite = timezone.now() - timedelta(days=30)
+    # 1. Definição do Período (Filtros)
+    hoje = timezone.now()
     
-    # 1. GRÁFICO DE VENDAS DIÁRIAS (Linha)
-    # Agrupa vendas por dia e soma o valor total
-    vendas_diarias = Venda.objects.filter(
-        data_venda__gte=data_limite, status='C'
-    ).annotate(
-        dia=TruncDay('data_venda')
-    ).values('dia').annotate(
-        total=Sum('valor_total')
-    ).order_by('dia')
-    
-    # Prepara listas para o Javascript
-    datas_grafico = [v['dia'].strftime('%d/%m') for v in vendas_diarias]
-    valores_grafico = [float(v['total']) for v in vendas_diarias]
+    # Captura parâmetros da URL
+    mes_filtro = request.GET.get('mes', hoje.month) 
+    ano_filtro = request.GET.get('ano', hoje.year)
+    dia_filtro = request.GET.get('dia', '') # Padrão vazio = Todos
 
-    # 2. GRÁFICO DE FORMAS DE PAGAMENTO (Rosca)
-    vendas_pagamento = Venda.objects.filter(status='C').values('forma_pagamento').annotate(
+    # Validação e Conversão
+    try:
+        mes_filtro = int(mes_filtro)
+        ano_filtro = int(ano_filtro)
+    except ValueError:
+        mes_filtro = hoje.month
+        ano_filtro = hoje.year
+        
+    # Valida o dia (se foi informado)
+    dia_selecionado = None
+    if dia_filtro and dia_filtro.isdigit():
+        dia_selecionado = int(dia_filtro)
+
+    # 2. Filtragem Base (Ano e Mês são obrigatórios)
+    vendas_periodo = Venda.objects.filter(
+        data_venda__year=ano_filtro,
+        data_venda__month=mes_filtro,
+        status='C'
+    )
+    
+    # Se escolheu um dia específico, filtra também pelo dia
+    if dia_selecionado:
+        vendas_periodo = vendas_periodo.filter(data_venda__day=dia_selecionado)
+
+    # --- GRÁFICO 1: EVOLUÇÃO (LINHA) ---
+    # Lógica Inteligente: Se filtrou por DIA, mostra por HORA. Se é MÊS, mostra por DIA.
+    
+    if dia_selecionado:
+        # Agrupa por HORA
+        vendas_timeline = vendas_periodo.annotate(
+            periodo=TruncHour('data_venda')
+        ).values('periodo').annotate(
+            total=Sum('valor_final')
+        ).order_by('periodo')
+        
+        # Formato: 08:00, 09:00...
+        datas_grafico = [v['periodo'].strftime('%H:00') for v in vendas_timeline]
+        titulo_grafico1 = f"Vendas por Hora ({dia_selecionado}/{mes_filtro})"
+    else:
+        # Agrupa por DIA (Padrão)
+        vendas_timeline = vendas_periodo.annotate(
+            periodo=TruncDay('data_venda')
+        ).values('periodo').annotate(
+            total=Sum('valor_final')
+        ).order_by('periodo')
+        
+        # Formato: 01/12, 02/12...
+        datas_grafico = [v['periodo'].strftime('%d/%m') for v in vendas_timeline]
+        titulo_grafico1 = "Evolução Diária"
+
+    valores_grafico = [float(v['total']) for v in vendas_timeline]
+
+    # --- GRÁFICO 2: FORMAS DE PAGAMENTO (Rosca) ---
+    vendas_pagamento = vendas_periodo.values('forma_pagamento').annotate(
         qtd=Count('id')
     )
     
-    labels_pgto = [v['forma_pagamento'] for v in vendas_pagamento]
     dict_pgto = dict(Venda.FORMA_PAGAMENTO_CHOICES)
-    labels_pgto = [dict_pgto.get(l, l) for l in labels_pgto]
-    
+    labels_pgto = [dict_pgto.get(v['forma_pagamento'], v['forma_pagamento']) for v in vendas_pagamento]
     dados_pgto = [v['qtd'] for v in vendas_pagamento]
 
-    # 3. TOP 5 PRODUTOS MAIS VENDIDOS (Barras)
-    top_produtos = ItensVenda.objects.values(
+    # --- GRÁFICO 3: TOP PRODUTOS (Barras) ---
+    top_produtos = ItensVenda.objects.filter(
+        venda__in=vendas_periodo
+    ).values(
         'produto__nome'
     ).annotate(
         total_vendido=Sum('quantidade')
@@ -547,26 +592,43 @@ def dashboard_vendas(request):
     labels_prod = [p['produto__nome'] for p in top_produtos]
     dados_prod = [float(p['total_vendido']) for p in top_produtos]
 
-    # 4. TOP VENDEDORES (R$)
-    top_vendedores = Venda.objects.filter(
-        data_venda__gte=data_limite, 
-        status='C'
-    ).values('vendedor__username').annotate(
-        total_faturado=Sum('valor_final') # Soma o valor final real
+    # --- GRÁFICO 4: TOP VENDEDORES (R$) ---
+    top_vendedores = vendas_periodo.values('vendedor__username').annotate(
+        total_faturado=Sum('valor_final')
     ).order_by('-total_faturado')[:5]
 
     labels_vend = [v['vendedor__username'] for v in top_vendedores]
     dados_vend = [float(v['total_faturado']) for v in top_vendedores]
 
+    # --- DADOS PARA O SELECT DE DIAS ---
+    # Descobre quantos dias tem o mês selecionado (ex: Fevereiro 2024 = 29)
+    _, qtd_dias_mes = calendar.monthrange(ano_filtro, mes_filtro)
+    lista_dias = range(1, qtd_dias_mes + 1)
+
     context = {
         'datas_grafico': json.dumps(datas_grafico),
         'valores_grafico': json.dumps(valores_grafico),
+        'titulo_grafico1': titulo_grafico1, # Título dinâmico
+        
         'labels_pgto': json.dumps(labels_pgto),
         'dados_pgto': json.dumps(dados_pgto),
         'labels_prod': json.dumps(labels_prod),
         'dados_prod': json.dumps(dados_prod),
         'labels_vend': json.dumps(labels_vend), 
         'dados_vend': json.dumps(dados_vend),
+        
+        # Filtros
+        'mes_selecionado': mes_filtro,
+        'ano_selecionado': ano_filtro,
+        'dia_selecionado': dia_selecionado, # Novo
+        
+        'lista_meses': [
+            (1, 'Janeiro'), (2, 'Fevereiro'), (3, 'Março'), (4, 'Abril'),
+            (5, 'Maio'), (6, 'Junho'), (7, 'Julho'), (8, 'Agosto'),
+            (9, 'Setembro'), (10, 'Outubro'), (11, 'Novembro'), (12, 'Dezembro')
+        ],
+        'lista_anos': range(hoje.year, hoje.year - 5, -1),
+        'lista_dias': lista_dias, # Novo
     }
     
     return render(request, 'loja/dashboard_vendas.html', context)
