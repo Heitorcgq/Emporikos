@@ -149,7 +149,26 @@
                     </tbody>
                     <tfoot class="bg-light border-top">
                         <tr>
-                            <td colspan="2" class="text-end fw-bold py-3">TOTAL DA VENDA:</td>
+                            <td colspan="2" class="text-end text-secondary py-1">Subtotal:</td>
+                            <td class="text-end text-secondary pe-4 py-1">R$ {{ v.valor_total|floatformat:2 }}</td>
+                        </tr>
+
+                        {% if v.desconto > 0 %}
+                        <tr>
+                            <td colspan="2" class="text-end text-danger py-1">Desconto:</td>
+                            <td class="text-end text-danger pe-4 py-1">- R$ {{ v.desconto|floatformat:2 }}</td>
+                        </tr>
+                        {% endif %}
+
+                        {% if v.acrescimo > 0 %}
+                        <tr>
+                            <td colspan="2" class="text-end text-success py-1">Acréscimo:</td>
+                            <td class="text-end text-success pe-4 py-1">+ R$ {{ v.acrescimo|floatformat:2 }}</td>
+                        </tr>
+                        {% endif %}
+
+                        <tr class="border-top">
+                            <td colspan="2" class="text-end fw-bold py-3">TOTAL FINAL:</td>
                             <td class="text-end fw-bold pe-4 py-3 fs-5 text-primary">R$ {{ v.valor_final|floatformat:2 }}</td>
                         </tr>
                     </tfoot>
