@@ -167,12 +167,8 @@
         if (subtotal > 0) {
             // Regra de 3: (Valor / Total) * 100
             const novaPorcentagem = (valDesconto / subtotal) * 100;
-            
-            // Atualiza o campo % (com no máximo 2 casas decimais para não ficar quebrado)
             document.getElementById('desconto_percent').value = novaPorcentagem.toFixed(2);
         }
-        
-        // Chama o cálculo geral
         calcularTotais();
     }
 
@@ -182,30 +178,24 @@
         
         // Conta: Total * (Porcentagem / 100)
         const novoValor = subtotal * (valPorcento / 100);
-        
-        // Atualiza o campo R$
         document.getElementById('desconto').value = novoValor.toFixed(2);
         
-        // Chama o cálculo geral
         calcularTotais();
     }
 
-    // --- CÁLCULOS GERAIS (Mantidos e Ajustados) ---
+    // --- CÁLCULOS GERAIS ---
 
     function calcularTotais() {
-        // Pega os valores (o desconto em R$ já estará atualizado pelas funções acima)
         const desc = parseFloat(document.getElementById('desconto').value) || 0;
         const acre = parseFloat(document.getElementById('acrescimo').value) || 0;
         
-        // Conta final
         const total = subtotal - desc + acre;
         
-        // Atualiza os textos na tela (Resumo Financeiro)
+        // Atualiza os textos na tela
         document.getElementById('lbl-desconto').innerText = desc.toFixed(2);
         document.getElementById('lbl-acrescimo').innerText = acre.toFixed(2);
         document.getElementById('lbl-total').innerText = total.toFixed(2);
         
-        // Recalcula o troco se tiver valor recebido digitado
         calcularTroco();
     }
 
@@ -222,7 +212,7 @@
 
         if (recebido >= totalFinal) {
             let troco = recebido - totalFinal;
-            containerTroco.className = "h3 mb-0 fw-bold text-primary";
+            containerTroco.className = "h3 mb-0 fw-bold text-success"; // Mudei para verde (Success)
             containerTroco.innerHTML = 'Troco: R$ <span id="lbl-troco">' + troco.toFixed(2) + '</span>';
         } else {
             let falta = totalFinal - recebido;
@@ -231,31 +221,60 @@
         }
     }
 
+    // --- FUNÇÃO PRINCIPAL DE FINALIZAÇÃO ---
     async function confirmarVenda() {
         const pgto = document.getElementById('forma_pagamento').value;
         const desc = parseFloat(document.getElementById('desconto').value) || 0;
         const acre = parseFloat(document.getElementById('acrescimo').value) || 0;
         const final = parseFloat(document.getElementById('lbl-total').innerText);
         
-        // Validação de troco
+        // Valor Recebido
         const recebido = parseFloat(document.getElementById('valor_recebido').value) || 0;
-        if (pgto === 'DIN' && recebido > 0 && recebido < final) {
-            if(!confirm("O valor recebido é menor que o total. Deseja finalizar mesmo assim?")) return;
+
+        // --- VALIDAÇÃO (SEGURANÇA DO CAIXA) ---
+        
+        // 1. Verifica se digitou algo
+        if (recebido <= 0 || isNaN(recebido)) {
+            alert("⚠️ ATENÇÃO:\nVocê precisa informar o valor recebido do cliente!");
+            document.getElementById('valor_recebido').focus();
+            return; // PARA AQUI. Não finaliza.
         }
 
+        // 2. Verifica se o valor paga a conta
+        // Usamos (final - 0.01) para evitar bugs de arredondamento (ex: 99.9999 < 100)
+        if (recebido < (final - 0.01)) {
+            let falta = (final - recebido).toFixed(2);
+            alert(`⚠️ VALOR INSUFICIENTE!\n\nFaltam R$ ${falta} para fechar a conta.\nO sistema não permite finalizar com valor menor.`);
+            document.getElementById('valor_recebido').focus();
+            return; // PARA AQUI. Não finaliza.
+        }
+
+        // --- ENVIO PARA O SERVIDOR ---
         const res = await fetch("/api/concluir-venda/{{ venda.id }}/", {
             method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({ forma_pagamento: pgto, desconto: desc, acrescimo: acre, valor_final: final })
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': '{{ csrf_token }}'
+            },
+            // ADICIONE O 'valor_recebido' AQUI EMBAIXO:
+            body: JSON.stringify({ 
+                forma_pagamento: pgto, 
+                desconto: desc, 
+                acrescimo: acre, 
+                valor_final: final,
+                valor_recebido: recebido  // <--- IMPORTANTE!
+            })
         });
 
         const json = await res.json();
         
         if (json.status === 'sucesso') {
             if (json.aviso) alert("⚠️ ATENÇÃO:\n" + json.aviso);
+            
+            // Abre o modal de sucesso
             new bootstrap.Modal(document.getElementById('modalSucesso')).show();
         } else {
-            alert("Erro: " + json.mensagem);
+            alert("Erro ao finalizar: " + json.mensagem);
         }
     }
     

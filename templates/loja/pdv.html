@@ -296,22 +296,21 @@
 
     // --- NOVA FUNÇÃO DE CHECKOUT ---
     function irParaCheckout() {
-        // 1. Força a perda de foco de qualquer input ativo para garantir que o 'onchange' dispare
+        if (carrinho.length === 0) {
+            alert("⚠️ O carrinho está vazio!\nAdicione produtos antes de ir para o pagamento.");
+            return; // Para a função aqui, não deixa avançar
+        }
+
+        // 1. Força a perda de foco de qualquer input ativo
         if (document.activeElement) {
             document.activeElement.blur();
         }
 
-        // 2. Pequeno delay (300ms) para garantir que o fetch do onchange saiu
+        // 2. Pequeno delay e redirecionamento
         setTimeout(() => {
             window.location.href = "{% url 'checkout' venda_id=venda.id %}";
         }, 300);
     }
-
-    document.addEventListener('keydown', e => {
-        if(e.key === 'F2') {
-            irParaCheckout(); // Agora usa a função segura
-        }
-    });
 
 </script>
 {% endblock %}

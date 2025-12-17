@@ -322,7 +322,12 @@ def checkout(request, venda_id):
     
     # Se já foi concluída, não deixa pagar de novo
     if venda.status == 'C':
-        return redirect('frente_caixa')
+        return redirect('frente_caixa', venda_id=venda.id)
+    
+    # [NOVO] Se não tem itens, chuta de volta para o caixa
+    if not venda.itensvenda_set.exists():
+        # Opcional: Adicionar mensagem de erro (requer configurar messages no template)
+        return redirect('frente_caixa', venda_id=venda.id)
         
     return render(request, 'loja/checkout.html', {'venda': venda})
 
@@ -338,11 +343,27 @@ def concluir_venda(request, venda_id):
 
         dados = json.loads(request.body)
         
-        # Atualiza dados financeiros
-        venda.desconto = float(dados.get('desconto', 0))
-        venda.acrescimo = float(dados.get('acrescimo', 0))
-        venda.valor_final = float(dados.get('valor_final', venda.valor_total))
-        venda.forma_pagamento = dados.get('forma_pagamento', 'DIN')
+        # 1. Captura os valores enviados
+        novo_valor_final = float(dados.get('valor_final', venda.valor_total))
+        valor_recebido = float(dados.get('valor_recebido', 0)) # <--- NOVO CAMPO
+        desconto = float(dados.get('desconto', 0))
+        acrescimo = float(dados.get('acrescimo', 0))
+        forma_pagamento = dados.get('forma_pagamento', 'DIN')
+
+        # --- 2. TRAVA DE SEGURANÇA (BACKEND) ---
+        # Se for Dinheiro e o valor recebido for menor que o total (com margem de 0.01 centavo)
+        if forma_pagamento == 'DIN':
+            if valor_recebido < (novo_valor_final - 0.01):
+                return JsonResponse({
+                    'status': 'erro', 
+                    'mensagem': f'Valor recebido (R$ {valor_recebido:.2f}) é menor que o total (R$ {novo_valor_final:.2f}).'
+                }, status=400)
+
+        # 3. Atualiza dados financeiros
+        venda.desconto = desconto
+        venda.acrescimo = acrescimo
+        venda.valor_final = novo_valor_final
+        venda.forma_pagamento = forma_pagamento
         venda.data_venda = timezone.now()
         venda.status = 'C' # Concluída
         venda.save()
