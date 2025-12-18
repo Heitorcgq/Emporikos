@@ -363,6 +363,7 @@ def concluir_venda(request, venda_id):
         venda.desconto = desconto
         venda.acrescimo = acrescimo
         venda.valor_final = novo_valor_final
+        venda.valor_recebido = valor_recebido
         venda.forma_pagamento = forma_pagamento
         venda.data_venda = timezone.now()
         venda.status = 'C' # Concluída

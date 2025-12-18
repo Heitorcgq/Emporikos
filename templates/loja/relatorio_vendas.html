@@ -166,11 +166,23 @@
                             <td class="text-end text-success pe-4 py-1">+ R$ {{ v.acrescimo|floatformat:2 }}</td>
                         </tr>
                         {% endif %}
+                        
 
                         <tr class="border-top">
                             <td colspan="2" class="text-end fw-bold py-3">TOTAL FINAL:</td>
                             <td class="text-end fw-bold pe-4 py-3 fs-5 text-primary">R$ {{ v.valor_final|floatformat:2 }}</td>
                         </tr>
+
+                        {% if v.forma_pagamento == 'DIN' and v.valor_recebido > 0 %}
+                        <tr>
+                            <td colspan="2" class="text-end text-secondary small py-1">Valor Recebido:</td>
+                            <td class="text-end text-secondary small pe-4 py-1">R$ {{ v.valor_recebido|floatformat:2 }}</td>
+                        </tr>
+                        <tr>
+                            <td colspan="2" class="text-end fw-bold text-success py-2">TROCO:</td>
+                            <td class="text-end fw-bold text-success pe-4 py-2">R$ {{ v.troco|floatformat:2 }}</td>
+                        </tr>
+                        {% endif %}
                     </tfoot>
                 </table>
             </div>

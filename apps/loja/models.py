@@ -46,9 +46,15 @@ class Venda(models.Model):
     desconto = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     acrescimo = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     valor_final = models.DecimalField(max_digits=10, decimal_places=2, default=0)
-
+    valor_recebido = models.DecimalField(max_digits=10, decimal_places=2, default=0, null=True, blank=True)
     forma_pagamento = models.CharField(max_length=3, choices=FORMA_PAGAMENTO_CHOICES, default='DIN')
     status = models.CharField(max_length=1, choices=STATUS_CHOICES, default='P')
+
+    @property
+    def troco(self):
+        if self.valor_recebido and self.valor_recebido > self.valor_final:
+            return self.valor_recebido - self.valor_final
+        return 0
 
     def __str__(self):
         return f"Venda #{self.id} - {self.get_status_display()}"
