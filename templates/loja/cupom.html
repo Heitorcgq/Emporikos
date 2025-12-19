@@ -134,6 +134,10 @@
         <span class="fw-bold">TOTAL A PAGAR</span>
         <span class="fw-bold">R$ {{ venda.valor_final|floatformat:2 }}</span>
     </div>
+    <tr>
+        <td>TROCO</td>
+        <td class="text-end">R$ {{ venda.troco|floatformat:2 }}</td>
+    </tr>
 
     <div class="divider-solid"></div>
 

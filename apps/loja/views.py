@@ -131,16 +131,29 @@ def frente_caixa(request, venda_id):
     Função 2: A tela do Caixa.
     OBRIGATORIAMENTE recebe um ID.
     """
-    # Garante que a venda existe e pertence ao usuário (segurança)
-    venda = get_object_or_404(Venda, id=venda_id, vendedor=request.user)
+    # Garante que a venda existe
+    venda = get_object_or_404(Venda, id=venda_id)
+    
+    # --- TRAVA DE SEGURANÇA ---
+    # Se a venda já foi Concluída ('C') ou Cancelada ('X'), 
+    # não permite abrir o PDV para edição.
+    if venda.status in ['C', 'X']:
+        messages.warning(request, f"A Venda #{venda.id} já foi finalizada e não pode ser alterada.")
+        # Redireciona para o relatório (onde ele pode ver os detalhes, mas não editar)
+        return redirect('relatorio_vendas')
 
-    # Aqui você busca os itens já salvos dessa venda para mostrar na tela
-    itens = venda.itensvenda_set.all() # Ajuste conforme seu `related_name` no model
+    # Verifica se pertence ao usuário (opcional, dependendo da sua regra de negócio)
+    # Se quiser que gerente edite venda de caixa, remova o "vendedor=request.user" abaixo
+    if not checar_gerente(request.user) and venda.vendedor != request.user:
+         messages.error(request, "Você não tem permissão para acessar esta venda.")
+         return redirect('home_pdv')
+
+    itens = venda.itensvenda_set.all()
 
     context = {
-        'venda': venda, # Passamos a venda inteira para o template
+        'venda': venda,
         'itens': itens,
-        'venda_id': venda.id # Reforçando o ID para o JS usar
+        'venda_id': venda.id
     }
     
     return render(request, 'loja/pdv.html', context)
@@ -148,35 +161,37 @@ def frente_caixa(request, venda_id):
 
 
 
-@csrf_exempt # Ou use @require_POST se configurar o CSRF no fetch
+@csrf_exempt
 def api_adicionar_item(request, venda_id):
     if request.method == 'POST':
+        venda = get_object_or_404(Venda, id=venda_id)
+        
+        # --- TRAVA DE SEGURANÇA ---
+        if venda.status != 'P':
+            return JsonResponse({'status': 'erro', 'mensagem': 'Venda fechada não pode ser alterada.'}, status=403)
+            
         data = json.loads(request.body)
         produto_codigo = data.get('codigo')
-        
-        venda = get_object_or_404(Venda, id=venda_id)
-        # Tenta achar o produto pelo código ou devolve erro 404
         produto = get_object_or_404(Produto, codigo=produto_codigo) 
         
-        # Verifica se o item já existe na venda para apenas somar a quantidade
+        # ... (restante do código igual) ...
+        
         item_existente = venda.itensvenda_set.filter(produto=produto).first()
         
         if item_existente:
             item_existente.quantidade += 1
             item_existente.save()
         else:
-            # Cria novo item
             ItensVenda.objects.create(
                 venda=venda,
                 produto=produto,
                 quantidade=1,
                 preco_unitario=produto.preco_venda,
-                subtotal=produto.preco_venda # O save() do model já recalcula, mas garantimos aqui
+                subtotal=produto.preco_venda
             )
             
-        # Atualiza o total da venda
         venda.valor_total = sum(item.subtotal for item in venda.itensvenda_set.all())
-        venda.valor_final = venda.valor_total # Reseta descontos parciais para evitar erro
+        venda.valor_final = venda.valor_total
         venda.save()
     
         return JsonResponse({'status': 'ok'})
@@ -187,6 +202,11 @@ def api_remover_item(request, item_id):
     if request.method == 'POST':
         item = get_object_or_404(ItensVenda, id=item_id)
         venda = item.venda
+        
+        # --- TRAVA DE SEGURANÇA ---
+        if venda.status != 'P':
+            return JsonResponse({'status': 'erro', 'mensagem': 'Venda fechada não pode ser alterada.'}, status=403)
+
         item.delete()
         
         # Recalcula total da venda
@@ -200,15 +220,19 @@ def api_remover_item(request, item_id):
 @csrf_exempt
 def api_atualizar_quantidade(request, item_id):
     if request.method == 'POST':
+        item = get_object_or_404(ItensVenda, id=item_id)
+        venda = item.venda
+        
+        # --- TRAVA DE SEGURANÇA ---
+        if venda.status != 'P':
+            return JsonResponse({'status': 'erro', 'mensagem': 'Venda fechada não pode ser alterada.'}, status=403)
+            
         data = json.loads(request.body)
         nova_qtd = Decimal(str(data.get('quantidade')))
         
-        item = get_object_or_404(ItensVenda, id=item_id)
         item.quantidade = nova_qtd
-        item.save() # O save() do model ItensVenda já atualiza o subtotal
+        item.save()
         
-        # Atualiza total da venda
-        venda = item.venda
         venda.valor_total = sum(i.subtotal for i in venda.itensvenda_set.all())
         venda.valor_final = venda.valor_total
         venda.save()
@@ -220,6 +244,10 @@ def api_atualizar_quantidade(request, item_id):
 def api_limpar_venda(request, venda_id):
     if request.method == 'POST':
         venda = get_object_or_404(Venda, id=venda_id)
+        
+        # --- TRAVA DE SEGURANÇA ---
+        if venda.status != 'P':
+            return JsonResponse({'status': 'erro', 'mensagem': 'Venda fechada não pode ser limpa.'}, status=403)
         
         # Apaga todos os itens desta venda
         venda.itensvenda_set.all().delete()
