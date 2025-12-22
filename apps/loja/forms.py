@@ -1,5 +1,5 @@
 from django import forms
-from .models import Produto, Categoria, Funcionario
+from .models import Produto, Categoria, Funcionario, Fornecedor
 from django.contrib.auth.models import User
 
 class ProdutoForm(forms.ModelForm):
@@ -99,3 +99,16 @@ class CadastroFuncionarioForm(forms.ModelForm):
             func_profile.save()
             
         return user
+    
+
+class FornecedorForm(forms.ModelForm):
+    class Meta:
+        model = Fornecedor
+        fields = ['empresa', 'nome', 'telefone', 'email']
+        
+        widgets = {
+            'empresa': forms.TextInput(attrs={'class': 'form-control'}),
+            'nome': forms.TextInput(attrs={'class': 'form-control'}),
+            'telefone': forms.TextInput(attrs={'class': 'form-control'}),
+            'email': forms.EmailInput(attrs={'class': 'form-control'}),
+        }

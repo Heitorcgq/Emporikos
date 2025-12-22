@@ -7,8 +7,8 @@ from django.views.decorators.csrf import csrf_exempt
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.views.decorators.http import require_POST
 from django.db.models import Sum, Count, Q
-from .models import Produto, Venda, ItensVenda, Categoria
-from .forms import ProdutoForm, CategoriaForm, CadastroFuncionarioForm
+from .models import Produto, Venda, ItensVenda, Categoria, Fornecedor
+from .forms import ProdutoForm, CategoriaForm, CadastroFuncionarioForm, FornecedorForm
 from datetime import datetime, timedelta
 from django.utils import timezone
 from django.db.models.functions import TruncDay
@@ -106,6 +106,61 @@ def excluir_funcionario(request, funcionario_id):
         messages.error(request, f"Erro ao excluir: {e}")
         
     return redirect('catalogo_funcionarios')
+
+@login_required
+@user_passes_test(checar_gerente, login_url='/pdv/')
+def catalogo_fornecedores(request):
+    # Lógica de Adicionar (POST)
+    if request.method == 'POST':
+        form = FornecedorForm(request.POST)
+        if form.is_valid():
+            try:
+                form.save()
+                messages.success(request, "Fornecedor cadastrado com sucesso!")
+                return redirect('catalogo_fornecedores')
+            except Exception as e:
+                messages.error(request, f"Erro ao cadastrar: {e}")
+        else:
+            messages.error(request, "Erro no formulário. Verifique os dados.")
+    else:
+        form = FornecedorForm()
+
+    # Listagem (Ordem alfabética por Empresa)
+    fornecedores = Fornecedor.objects.all().order_by('empresa')
+
+    return render(request, 'loja/fornecedores.html', {
+        'fornecedores': fornecedores,
+        'form': form
+    })
+
+@login_required
+@user_passes_test(checar_gerente, login_url='/pdv/')
+def editar_fornecedor(request, fornecedor_id):
+    fornecedor = get_object_or_404(Fornecedor, id=fornecedor_id)
+    
+    if request.method == 'POST':
+        form = FornecedorForm(request.POST, instance=fornecedor)
+        if form.is_valid():
+            form.save()
+            messages.success(request, f"Dados de '{fornecedor.empresa}' atualizados!")
+            return redirect('catalogo_fornecedores')
+    else:
+        form = FornecedorForm(instance=fornecedor)
+    
+    return render(request, 'loja/editar_fornecedor.html', {
+        'form': form,
+        'fornecedor': fornecedor
+    })
+
+@login_required
+@user_passes_test(checar_gerente, login_url='/pdv/')
+def excluir_fornecedor(request, fornecedor_id):
+    fornecedor = get_object_or_404(Fornecedor, id=fornecedor_id)
+    nome = fornecedor.empresa
+    fornecedor.delete()
+    messages.success(request, f"Fornecedor '{nome}' removido.")
+    return redirect('catalogo_fornecedores')
+
 
 @login_required
 def home_pdv(request):

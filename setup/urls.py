@@ -35,6 +35,11 @@ urlpatterns = [
     path('gestao/funcionarios/editar/<int:funcionario_id>/', views.editar_funcionario, name='editar_funcionario'),
     path('gestao/funcionarios/excluir/<int:funcionario_id>/', views.excluir_funcionario, name='excluir_funcionario'),
 
+    # --- GESTÃO DE FORNECEDORES ---
+    path('gestao/fornecedores/', views.catalogo_fornecedores, name='catalogo_fornecedores'),
+    path('gestao/fornecedores/editar/<int:fornecedor_id>/', views.editar_fornecedor, name='editar_fornecedor'),
+    path('gestao/fornecedores/excluir/<int:fornecedor_id>/', views.excluir_fornecedor, name='excluir_fornecedor'),
+
     # --- NOTIFICAÇÃO ---
     path('gestao/notificacoes/', views.notificacoes, name='notificacoes'),
     

@@ -41,9 +41,16 @@
                                 <div class="fw-bold text-dark">{{ p.nome }}</div>
                                 <small class="text-muted">{{ p.codigo|default:"Sem código" }}</small>
                             </div>
-                            <a href="{% url 'editar_produto' p.id %}" class="btn btn-sm btn-outline-danger">
-                                Repor
-                            </a>
+                            
+                            <div class="d-flex gap-2">
+                                <a href="{% url 'editar_produto' p.id %}" class="btn btn-sm btn-danger text-white border-0 shadow-sm" title="Adicionar Estoque">
+                                    <i class="bi bi-plus-lg me-1"></i> Adic.
+                                </a>
+                                <a href="{% url 'catalogo_fornecedores' %}" class="btn btn-sm btn-outline-danger" title="Contatar Fornecedor">
+                                    <i class="bi bi-truck"></i>
+                                </a>
+                            </div>
+
                         </div>
                     {% empty %}
                         <div class="p-4 text-center text-muted">
@@ -68,9 +75,16 @@
                                 <div class="fw-bold text-dark">{{ p.nome }}</div>
                                 <small class="text-muted">Restam apenas: <strong class="text-warning">{{ p.estoque_atual }}</strong></small>
                             </div>
-                            <a href="{% url 'editar_produto' p.id %}" class="btn btn-sm btn-outline-warning text-dark">
-                                Comprar
-                            </a>
+                            
+                            <div class="d-flex gap-2">
+                                <a href="{% url 'editar_produto' p.id %}" class="btn btn-sm btn-warning text-dark border-0 shadow-sm" title="Adicionar Estoque">
+                                    <i class="bi bi-plus-lg me-1"></i> Adic.
+                                </a>
+                                <a href="{% url 'catalogo_fornecedores' %}" class="btn btn-sm btn-outline-warning text-dark" title="Contatar Fornecedor">
+                                    <i class="bi bi-truck"></i>
+                                </a>
+                            </div>
+
                         </div>
                     {% empty %}
                         <div class="p-4 text-center text-muted">
