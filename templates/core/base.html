@@ -140,6 +140,17 @@
 
                   <li class="nav-item mx-2 text-secondary d-none d-lg-block">|</li>
 
+                  {% if user|eh_gerente %}
+                      <li class="nav-item me-3">
+                          <a class="nav-link position-relative text-secondary" href="{% url 'notificacoes' %}" title="Notificações">
+                              <i class="bi bi-bell-fill fs-5"></i>
+                              <span class="position-absolute top-10 start-100 translate-middle p-1 bg-danger border border-light rounded-circle">
+                                <span class="visually-hidden">Alertas</span>
+                              </span>
+                          </a>
+                      </li>
+                  {% endif %}
+
                   <li class="nav-item dropdown">
                       <a class="nav-link dropdown-toggle fw-bold text-dark" href="#" role="button" data-bs-toggle="dropdown">
                           <i class="bi bi-person-circle me-1 text-secondary"></i> {{ user.username|title }}

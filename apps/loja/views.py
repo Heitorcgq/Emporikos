@@ -362,7 +362,7 @@ def checkout(request, venda_id):
 @transaction.atomic
 @csrf_exempt
 def concluir_venda(request, venda_id):
-    """Finaliza a venda e BAIXA O ESTOQUE (com proteção contra negativo infinito)."""
+    """Finaliza a venda, BAIXA O ESTOQUE e avisa se algo zerou."""
     if request.method == 'POST':
         venda = get_object_or_404(Venda, id=venda_id)
         
@@ -371,87 +371,105 @@ def concluir_venda(request, venda_id):
 
         dados = json.loads(request.body)
         
-        # 1. Captura os valores enviados
+        # 1. Captura e Valida Valores
         novo_valor_final = float(dados.get('valor_final', venda.valor_total))
-        valor_recebido = float(dados.get('valor_recebido', 0)) # <--- NOVO CAMPO
+        valor_recebido = float(dados.get('valor_recebido', 0))
         desconto = float(dados.get('desconto', 0))
         acrescimo = float(dados.get('acrescimo', 0))
         forma_pagamento = dados.get('forma_pagamento', 'DIN')
 
-        # --- 2. TRAVA DE SEGURANÇA (BACKEND) ---
-        # Se for Dinheiro e o valor recebido for menor que o total (com margem de 0.01 centavo)
+        # Trava de Segurança (Backend)
         if forma_pagamento == 'DIN':
             if valor_recebido < (novo_valor_final - 0.01):
                 return JsonResponse({
                     'status': 'erro', 
-                    'mensagem': f'Valor recebido (R$ {valor_recebido:.2f}) é menor que o total (R$ {novo_valor_final:.2f}).'
+                    'mensagem': f'Valor recebido (R$ {valor_recebido:.2f}) é menor que o total.'
                 }, status=400)
 
-        # 3. Atualiza dados financeiros
+        # 2. Atualiza Venda
         venda.desconto = desconto
         venda.acrescimo = acrescimo
         venda.valor_final = novo_valor_final
         venda.valor_recebido = valor_recebido
         venda.forma_pagamento = forma_pagamento
         venda.data_venda = timezone.now()
-        venda.status = 'C' # Concluída
+        venda.status = 'C'
         venda.save()
         
-        # Lista para guardar nomes de produtos que já estavam zerados
-        itens_sem_baixa = []
+        # Listas para notificações
+        itens_sem_baixa = []   # Já estava zerado antes
+        itens_que_zeraram = [] # Zerou AGORA com essa venda
 
-        # Baixa Estoque com Condição
+        # 3. Baixa Estoque
         for item in venda.itensvenda_set.all():
             produto = item.produto
             
             if produto.estoque_atual > 0:
+                # Salva o estoque antigo para comparação (opcional, mas bom pra debug)
+                estoque_antigo = produto.estoque_atual
+                
+                # Baixa normal
                 produto.estoque_atual -= item.quantidade 
                 produto.save()
+                
+                # --- NOVA LÓGICA DE NOTIFICAÇÃO ---
+                # Se após a baixa o estoque ficou <= 0, avisa que acabou!
+                if produto.estoque_atual <= 0:
+                    itens_que_zeraram.append(produto.nome)
+                    
             else:
-                # Se já for 0 ou negativo, não faz nada e avisa
+                # Se já era 0 ou negativo antes de começar
                 itens_sem_baixa.append(produto.nome)
         
-        # Prepara a resposta
+        # 4. Prepara a Resposta com os Avisos
         resposta = {'status': 'sucesso'}
-        
-        # Se houve algum item que não baixou estoque, avisamos
+        avisos = []
+
         if itens_sem_baixa:
             nomes = ", ".join(itens_sem_baixa)
-            resposta['aviso'] = f"Venda concluída! Porém, estes itens já estavam esgotados e o estoque não foi alterado: {nomes}"
+            avisos.append(f"⛔ ESTOQUE INALTERADO: Os seguintes itens já estavam esgotados: {nomes}")
+        
+        if itens_que_zeraram:
+            nomes = ", ".join(itens_que_zeraram)
+            avisos.append(f"⚠️ ESTOQUE ACABOU: Os seguintes itens esgotaram nesta venda: {nomes}")
+
+        if avisos:
+            resposta['aviso'] = "\n\n".join(avisos)
             
         return JsonResponse(resposta)
         
     return JsonResponse({'status': 'erro'}, status=400)
-
 @login_required
 @user_passes_test(checar_gerente, login_url='/pdv/')
 def relatorio_vendas(request):
-    # 1. Filtros Padrão (Datas)
+    # 1. Captura os parâmetros do formulário
     data_inicio = request.GET.get('data_inicio')
     data_fim = request.GET.get('data_fim')
     vendedor_id = request.GET.get('vendedor')
+    venda_id = request.GET.get('venda_id') # <--- Novo campo
 
-    # --- ALTERAÇÃO AQUI ---
-    # Antes era: Venda.objects.all()...
-    # Agora filtramos apenas as CONCLUÍDAS ('C')
+    # 2. Base: Apenas vendas concluídas
     vendas = Venda.objects.filter(status='C').order_by('-data_venda')
-    # ----------------------
 
-    if data_inicio and data_fim:
-        # Dica extra: Adicionei "date" no filtro para garantir que pegue o dia inteiro
-        vendas = vendas.filter(data_venda__range=[data_inicio, data_fim])
-    
-    # 2. Filtro por Vendedor
-    if vendedor_id:
-        vendas = vendas.filter(vendedor_id=vendedor_id)
-        vendedor_id = int(vendedor_id)
+    # 3. Lógica de Filtragem (Prioridade para o ID)
+    if venda_id:
+        # Se digitou um ID, filtramos EXATAMENTE ele e ignoramos datas/vendedor
+        vendas = vendas.filter(id=venda_id)
+    else:
+        # Se NÃO digitou ID, aplicamos os filtros normais de período e vendedor
+        if data_inicio and data_fim:
+            vendas = vendas.filter(data_venda__range=[data_inicio, data_fim])
+        
+        if vendedor_id:
+            vendas = vendas.filter(vendedor_id=vendedor_id)
+            vendedor_id = int(vendedor_id)
 
-    # 3. Totais
+    # 4. Totais (Calculados sobre o resultado filtrado)
     total_faturado = vendas.aggregate(Sum('valor_final'))['valor_final__sum'] or 0
     total_vendas = vendas.count()
     ticket_medio = total_faturado / total_vendas if total_vendas > 0 else 0
 
-    # 4. Lista de Funcionários para o Dropdown
+    # 5. Lista para o Dropdown
     funcionarios = User.objects.filter(is_active=True).order_by('username')
 
     return render(request, 'loja/relatorio_vendas.html', {
@@ -463,6 +481,7 @@ def relatorio_vendas(request):
         'data_fim': data_fim,
         'funcionarios': funcionarios,
         'vendedor_selecionado': vendedor_id,
+        'venda_id_busca': venda_id,
     })
 
 @login_required
@@ -687,3 +706,27 @@ def dashboard_vendas(request):
 def imprimir_cupom(request, venda_id):
     venda = get_object_or_404(Venda, id=venda_id)
     return render(request, 'loja/cupom.html', {'venda': venda})
+
+
+@login_required
+@user_passes_test(checar_gerente, login_url='/pdv/')
+def notificacoes(request):
+    # 1. Produtos Esgotados (Estoque <= 0)
+    esgotados = Produto.objects.filter(estoque_atual__lte=0).order_by('nome')
+    
+    # 2. Produtos com Estoque Baixo (Entre 0.001 e 10)
+    baixo_estoque = Produto.objects.filter(
+        estoque_atual__gt=0, 
+        estoque_atual__lte=10
+    ).order_by('estoque_atual')
+
+    # Contagem total de alertas
+    total_alertas = esgotados.count() + baixo_estoque.count()
+
+    context = {
+        'esgotados': esgotados,
+        'baixo_estoque': baixo_estoque,
+        'total_alertas': total_alertas
+    }
+    
+    return render(request, 'loja/notificacoes.html', context)

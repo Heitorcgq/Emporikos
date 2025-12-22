@@ -17,13 +17,22 @@
     </div>
 
     <div class="panel mb-4">
-        <form method="get" class="row g-3 align-items-end">
-            <div class="col-md-3">
+        <form method="get" class="row g-2 align-items-end">
+            
+            <div class="col-md-2">
+                <label class="form-label fw-bold text-secondary small">ID Venda</label>
+                <div class="input-group">
+                    <span class="input-group-text bg-light text-secondary border px-2"><i class="bi bi-hashtag"></i></span>
+                    <input type="number" name="venda_id" class="form-control" placeholder="Ex: 91" value="{{ venda_id_busca|default:'' }}">
+                </div>
+            </div>
+
+            <div class="col-md-2">
                 <label class="form-label fw-bold text-secondary small">Data Início</label>
                 <input type="date" name="data_inicio" class="form-control" value="{{ data_inicio }}">
             </div>
             
-            <div class="col-md-3">
+            <div class="col-md-2">
                 <label class="form-label fw-bold text-secondary small">Data Fim</label>
                 <input type="date" name="data_fim" class="form-control" value="{{ data_fim }}">
             </div>
@@ -31,7 +40,7 @@
             <div class="col-md-3">
                 <label class="form-label fw-bold text-secondary small">Vendedor</label>
                 <select name="vendedor" class="form-select">
-                    <option value="">Todos os Funcionários</option>
+                    <option value="">Todos</option>
                     {% for f in funcionarios %}
                         <option value="{{ f.id }}" {% if vendedor_selecionado == f.id %}selected{% endif %}>
                             {{ f.username|title }}
@@ -41,10 +50,10 @@
             </div>
 
             <div class="col-md-3 d-flex gap-2">
-                <button type="submit" class="btn btn-primary w-100">
-                    <i class="bi bi-filter"></i> Filtrar
+                <button type="submit" class="btn btn-primary flex-grow-1" title="Filtrar Resultados">
+                    <i class="bi bi-search me-2"></i>Filtrar
                 </button>
-                <a href="{% url 'relatorio_vendas' %}" class="btn btn-outline-secondary" title="Limpar">
+                <a href="{% url 'relatorio_vendas' %}" class="btn btn-outline-secondary" title="Limpar Filtros">
                     <i class="bi bi-x-lg"></i>
                 </a>
             </div>

@@ -1,0 +1,88 @@
+{% extends "core/base.html" %}
+
+{% block title %}Notificações | Emporikos{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="text-primary fw-bold">
+                <i class="bi bi-bell-fill me-2"></i>Central de Notificações
+            </h2>
+            <p class="text-muted mb-0">Alertas do sistema que precisam da sua atenção.</p>
+        </div>
+        <a href="{% url 'home_pdv' %}" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left"></i> Voltar
+        </a>
+    </div>
+
+    {% if total_alertas == 0 %}
+        <div class="alert alert-success d-flex align-items-center shadow-sm p-4" role="alert">
+            <i class="bi bi-check-circle-fill fs-1 me-3"></i>
+            <div>
+                <h4 class="alert-heading fw-bold mb-1">Tudo Certo!</h4>
+                <p class="mb-0">Não há alertas de estoque ou pendências no momento.</p>
+            </div>
+        </div>
+    {% else %}
+    
+    <div class="row g-4">
+        
+        <div class="col-md-6">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-header bg-danger text-white fw-bold d-flex justify-content-between align-items-center">
+                    <span><i class="bi bi-x-octagon-fill me-2"></i>PRODUTOS ESGOTADOS</span>
+                    <span class="badge bg-white text-danger rounded-pill">{{ esgotados.count }}</span>
+                </div>
+                <div class="list-group list-group-flush overflow-auto" style="max-height: 400px;">
+                    {% for p in esgotados %}
+                        <div class="list-group-item d-flex justify-content-between align-items-center">
+                            <div>
+                                <div class="fw-bold text-dark">{{ p.nome }}</div>
+                                <small class="text-muted">{{ p.codigo|default:"Sem código" }}</small>
+                            </div>
+                            <a href="{% url 'editar_produto' p.id %}" class="btn btn-sm btn-outline-danger">
+                                Repor
+                            </a>
+                        </div>
+                    {% empty %}
+                        <div class="p-4 text-center text-muted">
+                            <i class="bi bi-emoji-smile fs-1 d-block mb-2"></i>
+                            Nenhum produto zerado.
+                        </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-6">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-header bg-warning text-dark fw-bold d-flex justify-content-between align-items-center">
+                    <span><i class="bi bi-exclamation-triangle-fill me-2"></i>ESTOQUE BAIXO</span>
+                    <span class="badge bg-dark text-warning rounded-pill">{{ baixo_estoque.count }}</span>
+                </div>
+                <div class="list-group list-group-flush overflow-auto" style="max-height: 400px;">
+                    {% for p in baixo_estoque %}
+                        <div class="list-group-item d-flex justify-content-between align-items-center">
+                            <div>
+                                <div class="fw-bold text-dark">{{ p.nome }}</div>
+                                <small class="text-muted">Restam apenas: <strong class="text-warning">{{ p.estoque_atual }}</strong></small>
+                            </div>
+                            <a href="{% url 'editar_produto' p.id %}" class="btn btn-sm btn-outline-warning text-dark">
+                                Comprar
+                            </a>
+                        </div>
+                    {% empty %}
+                        <div class="p-4 text-center text-muted">
+                            <i class="bi bi-emoji-smile fs-1 d-block mb-2"></i>
+                            Estoque saudável.
+                        </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
