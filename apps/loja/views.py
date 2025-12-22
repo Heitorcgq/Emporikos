@@ -439,6 +439,7 @@ def concluir_venda(request, venda_id):
         return JsonResponse(resposta)
         
     return JsonResponse({'status': 'erro'}, status=400)
+
 @login_required
 @user_passes_test(checar_gerente, login_url='/pdv/')
 def relatorio_vendas(request):
