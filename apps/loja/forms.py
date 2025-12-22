@@ -37,8 +37,6 @@ class CategoriaForm(forms.ModelForm):
 
 class CadastroFuncionarioForm(forms.ModelForm):
     nome_completo = forms.CharField(label="Nome Completo", max_length=100, widget=forms.TextInput(attrs={'class': 'form-control'}))
-    
-    # CAMPO NOVO: TELEFONE
     telefone = forms.CharField(
         label="Telefone / WhatsApp",
         required=False,
@@ -55,7 +53,7 @@ class CadastroFuncionarioForm(forms.ModelForm):
 
     class Meta:
         model = User
-        fields = ['username', 'email'] # O telefone NÃO entra aqui, pois é de outra tabela
+        fields = ['username', 'email']
         widgets = {
             'username': forms.TextInput(attrs={'class': 'form-control'}),
             'email': forms.EmailInput(attrs={'class': 'form-control'}),
@@ -93,7 +91,7 @@ class CadastroFuncionarioForm(forms.ModelForm):
         
         if commit:
             user.save()
-            # SALVA O TELEFONE NA TABELA NOVA
+            # Salva o telefone
             func_profile, created = Funcionario.objects.get_or_create(usuario=user)
             func_profile.telefone = self.cleaned_data['telefone']
             func_profile.save()

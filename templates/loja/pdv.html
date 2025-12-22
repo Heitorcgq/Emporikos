@@ -192,14 +192,13 @@
         if (response.ok) window.location.reload();
     }
 
-    // ALTERAÇÃO: Adicionado keepalive: true para garantir que salve mesmo mudando de página
     async function atualizarQtdServidor(itemVendaId, novaQtd) {
         try {
             await fetch(`/api/pdv/atualizar-qtd/${itemVendaId}/`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'X-CSRFToken': CSRF_TOKEN },
                 body: JSON.stringify({ quantidade: novaQtd }),
-                keepalive: true // <--- ISSO É CRUCIAL PARA O SEU PROBLEMA
+                keepalive: true
             });
         } catch (e) {
             console.error("Erro ao salvar quantidade:", e);
@@ -297,8 +296,8 @@
     // --- NOVA FUNÇÃO DE CHECKOUT ---
     function irParaCheckout() {
         if (carrinho.length === 0) {
-            alert("⚠️ O carrinho está vazio!\nAdicione produtos antes de ir para o pagamento.");
-            return; // Para a função aqui, não deixa avançar
+            alert("O carrinho está vazio!\nAdicione produtos antes de ir para o pagamento.");
+            return;
         }
 
         // 1. Força a perda de foco de qualquer input ativo

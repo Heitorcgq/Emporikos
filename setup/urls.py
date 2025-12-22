@@ -8,7 +8,7 @@ urlpatterns = [
     path('login/', auth_views.LoginView.as_view(), name='login'),
     path('logout/', auth_views.LogoutView.as_view(), name='logout'),
 
-    # --- ROTAS PRINCIPAIS (QUE FALTAVAM) ---
+    # --- ROTAS PRINCIPAIS ---
     # Rota da Home: Redireciona para a venda aberta ou cria uma nova
     path('', views.home_pdv, name='home_pdv'),
     # Rota da Tela de Vendas: Mostra o HTML do caixa
@@ -19,6 +19,7 @@ urlpatterns = [
     path('api/pdv/remover/<int:item_id>/', views.api_remover_item, name='api_remover_item'),
     path('api/pdv/atualizar-qtd/<int:item_id>/', views.api_atualizar_quantidade, name='api_atualizar_quantidade'),
     path('api/pdv/limpar/<int:venda_id>/', views.api_limpar_venda, name='api_limpar_venda'),
+    path('api/concluir-venda/<int:venda_id>/', views.concluir_venda, name='concluir_venda'),
 
     # --- CADASTROS E RELATÓRIOS ---
     path('produtos/novo/', views.cadastro_produto, name='cadastro_produto'),
@@ -47,6 +48,4 @@ urlpatterns = [
     path('api/buscar-produto/', views.buscar_produto, name='buscar_produto'),    
     path('vendas/<int:venda_id>/checkout/', views.checkout, name='checkout'),
     
-    # API para concluir (Deixei apenas uma vez)
-    path('api/concluir-venda/<int:venda_id>/', views.concluir_venda, name='concluir_venda'),
 ]

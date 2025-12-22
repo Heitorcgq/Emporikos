@@ -164,9 +164,6 @@ def excluir_fornecedor(request, fornecedor_id):
 
 @login_required
 def home_pdv(request):
-    """
-    Função 1: O porteiro Inteligente.
-    """
     usuario = request.user
 
     # 1. Busca qualquer venda pendente deste usuário
@@ -182,14 +179,8 @@ def home_pdv(request):
 
 @login_required
 def frente_caixa(request, venda_id):
-    """
-    Função 2: A tela do Caixa.
-    OBRIGATORIAMENTE recebe um ID.
-    """
     # Garante que a venda existe
     venda = get_object_or_404(Venda, id=venda_id)
-    
-    # --- TRAVA DE SEGURANÇA ---
     # Se a venda já foi Concluída ('C') ou Cancelada ('X'), 
     # não permite abrir o PDV para edição.
     if venda.status in ['C', 'X']:
@@ -197,8 +188,7 @@ def frente_caixa(request, venda_id):
         # Redireciona para o relatório (onde ele pode ver os detalhes, mas não editar)
         return redirect('relatorio_vendas')
 
-    # Verifica se pertence ao usuário (opcional, dependendo da sua regra de negócio)
-    # Se quiser que gerente edite venda de caixa, remova o "vendedor=request.user" abaixo
+    # Verifica se pertence ao usuário
     if not checar_gerente(request.user) and venda.vendedor != request.user:
          messages.error(request, "Você não tem permissão para acessar esta venda.")
          return redirect('home_pdv')
@@ -221,16 +211,12 @@ def api_adicionar_item(request, venda_id):
     if request.method == 'POST':
         venda = get_object_or_404(Venda, id=venda_id)
         
-        # --- TRAVA DE SEGURANÇA ---
         if venda.status != 'P':
             return JsonResponse({'status': 'erro', 'mensagem': 'Venda fechada não pode ser alterada.'}, status=403)
             
         data = json.loads(request.body)
         produto_codigo = data.get('codigo')
         produto = get_object_or_404(Produto, codigo=produto_codigo) 
-        
-        # ... (restante do código igual) ...
-        
         item_existente = venda.itensvenda_set.filter(produto=produto).first()
         
         if item_existente:
@@ -257,8 +243,7 @@ def api_remover_item(request, item_id):
     if request.method == 'POST':
         item = get_object_or_404(ItensVenda, id=item_id)
         venda = item.venda
-        
-        # --- TRAVA DE SEGURANÇA ---
+    
         if venda.status != 'P':
             return JsonResponse({'status': 'erro', 'mensagem': 'Venda fechada não pode ser alterada.'}, status=403)
 
@@ -278,7 +263,6 @@ def api_atualizar_quantidade(request, item_id):
         item = get_object_or_404(ItensVenda, id=item_id)
         venda = item.venda
         
-        # --- TRAVA DE SEGURANÇA ---
         if venda.status != 'P':
             return JsonResponse({'status': 'erro', 'mensagem': 'Venda fechada não pode ser alterada.'}, status=403)
             
@@ -300,7 +284,6 @@ def api_limpar_venda(request, venda_id):
     if request.method == 'POST':
         venda = get_object_or_404(Venda, id=venda_id)
         
-        # --- TRAVA DE SEGURANÇA ---
         if venda.status != 'P':
             return JsonResponse({'status': 'erro', 'mensagem': 'Venda fechada não pode ser limpa.'}, status=403)
         
@@ -353,10 +336,7 @@ def buscar_produto(request):
 
 @csrf_exempt
 def iniciar_venda(request):
-    """
-    ETAPA 1: Recebe os itens do PDV, cria a venda PENDENTE e retorna o ID.
-    NÃO baixa estoque aqui ainda.
-    """
+    # Recebe os itens do PDV, cria a venda PENDENTE e retorna o ID.
     if request.method == 'POST':
         dados = json.loads(request.body)
         carrinho = dados.get('carrinho')
@@ -388,7 +368,7 @@ def iniciar_venda(request):
             total_itens += (quantidade * preco)
         
         venda.valor_total = total_itens
-        venda.valor_final = total_itens # Inicialmente é igual, sem desconto
+        venda.valor_final = total_itens
         venda.save()
         
         # Retorna o ID para o Javascript redirecionar
@@ -398,18 +378,16 @@ def iniciar_venda(request):
 
 @login_required
 def checkout(request, venda_id):
-    """
-    ETAPA 2: Renderiza a tela de pagamento
-    """
+    # Renderiza a tela de pagamento
+
     venda = get_object_or_404(Venda, id=venda_id)
     
     # Se já foi concluída, não deixa pagar de novo
     if venda.status == 'C':
         return redirect('frente_caixa', venda_id=venda.id)
     
-    # [NOVO] Se não tem itens, chuta de volta para o caixa
+    # Se não tem itens, chuta de volta para o caixa
     if not venda.itensvenda_set.exists():
-        # Opcional: Adicionar mensagem de erro (requer configurar messages no template)
         return redirect('frente_caixa', venda_id=venda.id)
         
     return render(request, 'loja/checkout.html', {'venda': venda})
@@ -417,7 +395,7 @@ def checkout(request, venda_id):
 @transaction.atomic
 @csrf_exempt
 def concluir_venda(request, venda_id):
-    """Finaliza a venda, BAIXA O ESTOQUE e avisa se algo zerou."""
+    # Finaliza a venda, BAIXA O ESTOQUE e avisa se algo zerou.
     if request.method == 'POST':
         venda = get_object_or_404(Venda, id=venda_id)
         
@@ -433,7 +411,7 @@ def concluir_venda(request, venda_id):
         acrescimo = float(dados.get('acrescimo', 0))
         forma_pagamento = dados.get('forma_pagamento', 'DIN')
 
-        # Trava de Segurança (Backend)
+        # Trava de Segurança 
         if forma_pagamento == 'DIN':
             if valor_recebido < (novo_valor_final - 0.01):
                 return JsonResponse({
@@ -460,14 +438,13 @@ def concluir_venda(request, venda_id):
             produto = item.produto
             
             if produto.estoque_atual > 0:
-                # Salva o estoque antigo para comparação (opcional, mas bom pra debug)
+                # Salva o estoque antigo para comparação
                 estoque_antigo = produto.estoque_atual
                 
                 # Baixa normal
                 produto.estoque_atual -= item.quantidade 
                 produto.save()
                 
-                # --- NOVA LÓGICA DE NOTIFICAÇÃO ---
                 # Se após a baixa o estoque ficou <= 0, avisa que acabou!
                 if produto.estoque_atual <= 0:
                     itens_que_zeraram.append(produto.nome)
@@ -482,11 +459,11 @@ def concluir_venda(request, venda_id):
 
         if itens_sem_baixa:
             nomes = ", ".join(itens_sem_baixa)
-            avisos.append(f"⛔ ESTOQUE INALTERADO: Os seguintes itens já estavam esgotados: {nomes}")
+            avisos.append(f"ESTOQUE INALTERADO: Os seguintes itens já estavam esgotados: {nomes}")
         
         if itens_que_zeraram:
             nomes = ", ".join(itens_que_zeraram)
-            avisos.append(f"⚠️ ESTOQUE ACABOU: Os seguintes itens esgotaram nesta venda: {nomes}")
+            avisos.append(f"ESTOQUE ACABOU: Os seguintes itens esgotaram nesta venda: {nomes}")
 
         if avisos:
             resposta['aviso'] = "\n\n".join(avisos)
@@ -502,14 +479,13 @@ def relatorio_vendas(request):
     data_inicio = request.GET.get('data_inicio')
     data_fim = request.GET.get('data_fim')
     vendedor_id = request.GET.get('vendedor')
-    venda_id = request.GET.get('venda_id') # <--- Novo campo
-
+    venda_id = request.GET.get('venda_id')
     # 2. Base: Apenas vendas concluídas
     vendas = Venda.objects.filter(status='C').order_by('-data_venda')
 
     # 3. Lógica de Filtragem (Prioridade para o ID)
     if venda_id:
-        # Se digitou um ID, filtramos EXATAMENTE ele e ignoramos datas/vendedor
+        # Se digitou um ID, filtramos exatamente ele e ignoramos datas/vendedor
         vendas = vendas.filter(id=venda_id)
     else:
         # Se NÃO digitou ID, aplicamos os filtros normais de período e vendedor
@@ -555,7 +531,7 @@ def cadastro_categoria(request):
 
     return render(request, 'loja/cadastro_categoria.html', {
         'form': form, 
-        'categorias': categorias_existentes # Passamos a lista para o HTML
+        'categorias': categorias_existentes
     })
 
 
@@ -611,7 +587,7 @@ def relatorio_estoque(request):
 @login_required
 @user_passes_test(checar_gerente, login_url='/pdv/')
 def editar_produto(request, produto_id):
-    # Busca o produto ou dá erro 404 se não existir
+    # Busca o produto
     produto = get_object_or_404(Produto, id=produto_id)
     
     if request.method == 'POST':
@@ -619,7 +595,7 @@ def editar_produto(request, produto_id):
         form = ProdutoForm(request.POST, instance=produto)
         if form.is_valid():
             form.save()
-            return redirect('relatorio_estoque') # Volta para a lista de estoque
+            return redirect('relatorio_estoque')
     else:
         # Preenche o formulário com os dados atuais
         form = ProdutoForm(instance=produto)
@@ -642,7 +618,7 @@ def dashboard_vendas(request):
     # Captura parâmetros da URL
     mes_filtro = request.GET.get('mes', hoje.month) 
     ano_filtro = request.GET.get('ano', hoje.year)
-    dia_filtro = request.GET.get('dia', '') # Padrão vazio = Todos
+    dia_filtro = request.GET.get('dia', '')
 
     # Validação e Conversão
     try:
@@ -652,7 +628,7 @@ def dashboard_vendas(request):
         mes_filtro = hoje.month
         ano_filtro = hoje.year
         
-    # Valida o dia (se foi informado)
+    # Valida o dia
     dia_selecionado = None
     if dia_filtro and dia_filtro.isdigit():
         dia_selecionado = int(dia_filtro)
@@ -679,7 +655,6 @@ def dashboard_vendas(request):
             total=Sum('valor_final')
         ).order_by('periodo')
         
-        # Formato: 08:00, 09:00...
         datas_grafico = [v['periodo'].strftime('%H:00') for v in vendas_timeline]
         titulo_grafico1 = f"Vendas por Hora ({dia_selecionado}/{mes_filtro})"
     else:
@@ -733,7 +708,7 @@ def dashboard_vendas(request):
     context = {
         'datas_grafico': json.dumps(datas_grafico),
         'valores_grafico': json.dumps(valores_grafico),
-        'titulo_grafico1': titulo_grafico1, # Título dinâmico
+        'titulo_grafico1': titulo_grafico1,
         
         'labels_pgto': json.dumps(labels_pgto),
         'dados_pgto': json.dumps(dados_pgto),
@@ -745,7 +720,7 @@ def dashboard_vendas(request):
         # Filtros
         'mes_selecionado': mes_filtro,
         'ano_selecionado': ano_filtro,
-        'dia_selecionado': dia_selecionado, # Novo
+        'dia_selecionado': dia_selecionado,
         
         'lista_meses': [
             (1, 'Janeiro'), (2, 'Fevereiro'), (3, 'Março'), (4, 'Abril'),
@@ -753,7 +728,7 @@ def dashboard_vendas(request):
             (9, 'Setembro'), (10, 'Outubro'), (11, 'Novembro'), (12, 'Dezembro')
         ],
         'lista_anos': range(hoje.year, hoje.year - 5, -1),
-        'lista_dias': lista_dias, # Novo
+        'lista_dias': lista_dias,
     }
     
     return render(request, 'loja/dashboard_vendas.html', context)

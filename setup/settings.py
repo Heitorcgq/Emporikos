@@ -1,6 +1,6 @@
 import os
 from pathlib import Path
-from dotenv import load_dotenv # Importa a biblioteca para ler o .env
+from dotenv import load_dotenv
 
 # Carrega as variáveis do arquivo .env
 load_dotenv()
@@ -12,7 +12,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
 # SEGURANÇA: A chave secreta agora vem do arquivo .env
-SECRET_KEY = os.getenv('SECRET_KEY', 'chave-padrao-insegura-se-nao-achar-no-env')
+SECRET_KEY = os.getenv('SECRET_KEY')
 
 # SEGURANÇA: O debug também é controlado pelo .env (True no seu PC, False na produção)
 DEBUG = os.getenv('DEBUG') == 'True'
@@ -30,8 +30,6 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
 
-    # --- SEUS APPS ---
-    # Aqui registramos o app da loja que criamos dentro da pasta 'apps'
     'apps.loja', 
 ]
 
@@ -50,7 +48,7 @@ ROOT_URLCONF = 'setup.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [BASE_DIR / 'templates'], # Adicionamos a pasta templates global
+        'DIRS': [BASE_DIR / 'templates'],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -110,10 +108,8 @@ AUTH_PASSWORD_VALIDATORS = [
 # Internationalization
 # https://docs.djangoproject.com/en/5.2/topics/i18n/
 
-# Mudamos para Português do Brasil
 LANGUAGE_CODE = 'pt-br'
 
-# Fuso horário de Brasília
 TIME_ZONE = 'America/Sao_Paulo'
 
 USE_I18N = True
@@ -125,8 +121,6 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/5.2/howto/static-files/
 
 STATIC_URL = 'static/'
-
-# Pasta onde ficarão seus arquivos estáticos (css, img) globais
 STATICFILES_DIRS = [BASE_DIR / "static"]
 
 # Default primary key field type

@@ -155,7 +155,6 @@
 
 {% block scripts %}
 <script>
-    // Valor inicial do Subtotal (Vindo do Django)
     const subtotal = parseFloat("{{ venda.valor_total|stringformat:'.2f' }}".replace(',', '.'));
 
     // --- LÓGICA DE SINCRONIZAÇÃO DE DESCONTO ---
@@ -212,7 +211,7 @@
 
         if (recebido >= totalFinal) {
             let troco = recebido - totalFinal;
-            containerTroco.className = "h3 mb-0 fw-bold text-success"; // Mudei para verde (Success)
+            containerTroco.className = "h3 mb-0 fw-bold text-success";
             containerTroco.innerHTML = 'Troco: R$ <span id="lbl-troco">' + troco.toFixed(2) + '</span>';
         } else {
             let falta = totalFinal - recebido;
@@ -235,18 +234,18 @@
         
         // 1. Verifica se digitou algo
         if (recebido <= 0 || isNaN(recebido)) {
-            alert("⚠️ ATENÇÃO:\nVocê precisa informar o valor recebido do cliente!");
+            alert("ATENÇÃO:\nVocê precisa informar o valor recebido do cliente!");
             document.getElementById('valor_recebido').focus();
-            return; // PARA AQUI. Não finaliza.
+            return;
         }
 
         // 2. Verifica se o valor paga a conta
         // Usamos (final - 0.01) para evitar bugs de arredondamento (ex: 99.9999 < 100)
         if (recebido < (final - 0.01)) {
             let falta = (final - recebido).toFixed(2);
-            alert(`⚠️ VALOR INSUFICIENTE!\n\nFaltam R$ ${falta} para fechar a conta.\nO sistema não permite finalizar com valor menor.`);
+            alert(`VALOR INSUFICIENTE!\n\nFaltam R$ ${falta} para fechar a conta.\nO sistema não permite finalizar com valor menor.`);
             document.getElementById('valor_recebido').focus();
-            return; // PARA AQUI. Não finaliza.
+            return;
         }
 
         // --- ENVIO PARA O SERVIDOR ---
@@ -256,20 +255,19 @@
                 'Content-Type': 'application/json',
                 'X-CSRFToken': '{{ csrf_token }}'
             },
-            // ADICIONE O 'valor_recebido' AQUI EMBAIXO:
             body: JSON.stringify({ 
                 forma_pagamento: pgto, 
                 desconto: desc, 
                 acrescimo: acre, 
                 valor_final: final,
-                valor_recebido: recebido  // <--- IMPORTANTE!
+                valor_recebido: recebido
             })
         });
 
         const json = await res.json();
         
         if (json.status === 'sucesso') {
-            if (json.aviso) alert("⚠️ ATENÇÃO:\n" + json.aviso);
+            if (json.aviso) alert("ATENÇÃO:\n" + json.aviso);
             
             // Abre o modal de sucesso
             new bootstrap.Modal(document.getElementById('modalSucesso')).show();
