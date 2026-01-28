@@ -8,17 +8,29 @@
             <a href="{% url 'cadastro_produto' %}" class="btn btn-primary w-10">
                 <i class="bi bi-plus-lg"></i> Novo Produto
             </a>
-            <a href="{% url 'frente_caixa' %}" class="btn btn-primary w-10">
+            <a href="{% url 'home_pdv' %}" class="btn btn-primary w-10">
                 <i class="bi bi-arrow-left"></i> Voltar
             </a>
         </div>
     </div>
 
-    <div class="panel mb-4 p-3">
-        <form method="get" class="row g-3 align-items-center">
+    <div class="panel mb-4 p-4 shadow-sm border-0">
+        <form method="get" class="row g-3 align-items-end">
             
             <div class="col-md-4">
-                <label class="form-label small fw-bold text-secondary">Filtrar por Categoria</label>
+                <label class="form-label small fw-bold text-secondary">Buscar Produto</label>
+                <div class="input-group">
+                    <span class="input-group-text bg-white text-secondary border-end-0">
+                        <i class="bi bi-search"></i>
+                    </span>
+                    <input type="text" name="termo" class="form-control border-start-0 ps-0" 
+                           placeholder="Nome ou Código..." value="{{ termo_busca|default:'' }}">
+                    <button class="btn btn-outline-secondary" type="submit">Buscar</button>
+                </div>
+            </div>
+
+            <div class="col-md-3">
+                <label class="form-label small fw-bold text-secondary">Categoria</label>
                 <select name="categoria" class="form-select" onchange="this.form.submit()">
                     <option value="">Todas as Categorias</option>
                     {% for cat in categorias %}
@@ -29,20 +41,28 @@
                 </select>
             </div>
 
-            <div class="col-md-4 pt-4">
+            <div class="col-md-5 d-flex gap-4 align-items-center pb-2">
                 <div class="form-check form-switch">
                     <input class="form-check-input" type="checkbox" name="baixo" value="1" id="checkBaixo" 
                            {% if filtro_baixo %}checked{% endif %} onchange="this.form.submit()">
                     <label class="form-check-label fw-bold text-warning" for="checkBaixo">
-                        <i class="bi bi-exclamation-triangle-fill me-1"></i> Apenas Estoque Baixo
+                        <i class="bi bi-exclamation-triangle-fill me-1"></i> Baixo
+                    </label>
+                </div>
+
+                <div class="form-check form-switch">
+                    <input class="form-check-input" type="checkbox" name="esgotado" value="1" id="checkEsgotado" 
+                           {% if filtro_esgotado %}checked{% endif %} onchange="this.form.submit()">
+                    <label class="form-check-label fw-bold text-danger" for="checkEsgotado">
+                        <i class="bi bi-x-circle-fill me-1"></i> Esgotado
                     </label>
                 </div>
             </div>
 
-            {% if filtro_categoria or filtro_baixo %}
-            <div class="col-md-4 text-end pt-3">
+            {% if filtro_categoria or filtro_baixo or filtro_esgotado or termo_busca %}
+            <div class="col-12 text-end border-top pt-3 mt-3">
                 <a href="{% url 'relatorio_estoque' %}" class="btn btn-sm btn-outline-secondary">
-                    <i class="bi bi-x-lg"></i> Limpar Filtros
+                    <i class="bi bi-trash me-1"></i> Limpar Filtros
                 </a>
             </div>
             {% endif %}
@@ -86,7 +106,7 @@
                 </thead>
                 <tbody>
                     {% for p in produtos %}
-                    <tr class="{% if p.estoque_atual <= 0 %}table-danger bg-opacity-10{% elif p.estoque_atual <= 5 %}table-warning bg-opacity-10{% endif %}">
+                    <tr class="{% if p.estoque_atual <= 0 %}table-danger bg-opacity-10{% elif p.estoque_atual <= 10 %}table-warning bg-opacity-10{% endif %}">
                         <td class="ps-4 text-secondary"><small>{{ p.codigo|default:"-" }}</small></td>
                         <td>
                             <div class="fw-bold text-primary">
@@ -104,7 +124,7 @@
                         <td class="text-center pe-4">
                             {% if p.estoque_atual <= 0 %}
                                 <span class="badge bg-danger">ESGOTADO</span>
-                            {% elif p.estoque_atual <= 5 %}
+                            {% elif p.estoque_atual <= 10 %}
                                 <span class="badge bg-warning text-dark">{{ p.estoque_atual }} (Baixo)</span>
                             {% else %}
                                 <span class="fw-bold fs-5 text-secondary">{{ p.estoque_atual }}</span>

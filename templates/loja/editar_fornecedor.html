@@ -1,0 +1,56 @@
+{% extends "core/base.html" %}
+
+{% block title %}Editar Fornecedor | Emporikos{% endblock %}
+
+{% block content %}
+<div class="container d-flex justify-content-center">
+    <div class="col-md-8 col-lg-6">
+        
+        <div class="d-flex align-items-center mb-4">
+            <a href="{% url 'catalogo_fornecedores' %}" class="btn btn-light rounded-circle shadow-sm me-3">
+                <i class="bi bi-arrow-left text-primary"></i>
+            </a>
+            <h4 class="fw-bold text-primary mb-0">Editar Fornecedor</h4>
+        </div>
+
+        <div class="panel shadow-sm border-0 p-4">
+            <form method="post">
+                {% csrf_token %}
+                
+                <div class="mb-3">
+                    <label class="form-label fw-bold text-secondary small">Nome da Empresa</label>
+                    {{ form.empresa }}
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label fw-bold text-secondary small">Nome do Contato</label>
+                    {{ form.nome }}
+                </div>
+
+                <div class="row g-3 mb-4">
+                    <div class="col-md-6">
+                        <label class="form-label fw-bold text-secondary small">Telefone</label>
+                        {{ form.telefone }}
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label fw-bold text-secondary small">Email</label>
+                        {{ form.email }}
+                    </div>
+                </div>
+
+                <div class="d-flex justify-content-between pt-3 border-top">
+                    <a href="{% url 'excluir_fornecedor' fornecedor.id %}" 
+                       class="btn btn-outline-danger border-0 d-flex align-items-center gap-2"
+                       onclick="return confirm('Tem certeza que deseja excluir este fornecedor?');">
+                        <i class="bi bi-trash"></i> Excluir
+                    </a>
+
+                    <button type="submit" class="btn btn-primary px-5">
+                        <i class="bi bi-check-lg me-2"></i> Salvar
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,5 +1,6 @@
 from django.db import models
 from django.contrib.auth.models import User
+from django.utils import timezone
 
 class Categoria(models.Model):
     nome = models.CharField(max_length=100)
@@ -21,7 +22,7 @@ class Produto(models.Model):
     estoque_atual = models.DecimalField(max_digits=10, decimal_places=3, default=0)
     codigo = models.CharField(max_length=50, unique=True, blank=True, null=True)
     detalhes = models.CharField(max_length=200, blank=True)
-
+    
     def __str__(self):
         return f"{self.nome} - {self.detalhes}"
     
@@ -40,14 +41,20 @@ class Venda(models.Model):
     ]
 
     vendedor = models.ForeignKey(User, on_delete=models.PROTECT)
-    data_venda = models.DateTimeField(auto_now_add=True)
+    data_venda = models.DateTimeField(default=timezone.now)
     valor_total = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     desconto = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     acrescimo = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     valor_final = models.DecimalField(max_digits=10, decimal_places=2, default=0)
-
+    valor_recebido = models.DecimalField(max_digits=10, decimal_places=2, default=0, null=True, blank=True)
     forma_pagamento = models.CharField(max_length=3, choices=FORMA_PAGAMENTO_CHOICES, default='DIN')
     status = models.CharField(max_length=1, choices=STATUS_CHOICES, default='P')
+
+    @property
+    def troco(self):
+        if self.valor_recebido and self.valor_recebido > self.valor_final:
+            return self.valor_recebido - self.valor_final
+        return 0
 
     def __str__(self):
         return f"Venda #{self.id} - {self.get_status_display()}"
@@ -62,3 +69,19 @@ class ItensVenda(models.Model):
     def save(self, *args, **kwargs):
         self.subtotal = self.quantidade * self.preco_unitario
         super().save(*args, **kwargs)
+
+class Funcionario(models.Model):
+    usuario = models.OneToOneField(User, on_delete=models.CASCADE, related_name='funcionario')
+    telefone = models.CharField(max_length=20, blank=True, null=True)
+
+    def __str__(self):
+        return self.usuario.username
+    
+class Fornecedor(models.Model):
+    empresa = models.CharField(max_length=100, verbose_name="Nome da Empresa")
+    nome = models.CharField(max_length=100, verbose_name="Nome do Contato")
+    telefone = models.CharField(max_length=20, blank=True, null=True)
+    email = models.EmailField(blank=True, null=True)
+
+    def __str__(self):
+        return self.empresa

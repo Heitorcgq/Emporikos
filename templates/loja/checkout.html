@@ -22,13 +22,37 @@
                         </select>
                     </div>
                     <div class="row g-3">
-                        <div class="col-md-6">
-                            <label class="form-label fw-bold text-secondary">Desconto (R$)</label>
-                            <div class="input-group"><span class="input-group-text text-danger bg-white"><i class="bi bi-arrow-down"></i></span><input type="number" id="desconto" class="form-control border-danger" step="0.01" value="0.00" oninput="calcularTotais()"></div>
+    <div class="col-md-3">
+        <label class="form-label fw-bold text-secondary small">Desconto (R$)</label>
+        <div class="input-group">
+            <span class="input-group-text bg-white text-danger border border-danger border-end-0">
+                <i class="bi bi-currency-dollar"></i>
+            </span>
+            <input type="number" id="desconto" class="form-control border-start-0 border-danger text-danger fw-bold" 
+                   step="0.01" value="0.00" oninput="aoMudarDescontoDinheiro()">
+        </div>
+    </div>
+
+                        <div class="col-md-3">
+                            <label class="form-label fw-bold text-secondary small">Desconto (%)</label>
+                            <div class="input-group">
+                                <input type="number" id="desconto_percent" class="form-control border-end-0 border-danger text-danger fw-bold" 
+                                    step="0.1" value="0" oninput="aoMudarDescontoPorcento()">
+                                <span class="input-group-text bg-white text-danger border border-danger border-start-0">
+                                    <i class="bi bi-percent"></i>
+                                </span>
+                            </div>
                         </div>
+
                         <div class="col-md-6">
-                            <label class="form-label fw-bold text-secondary">Acréscimo (R$)</label>
-                            <div class="input-group"><span class="input-group-text text-success bg-white"><i class="bi bi-arrow-up"></i></span><input type="number" id="acrescimo" class="form-control border-success" step="0.01" value="0.00" oninput="calcularTotais()"></div>
+                            <label class="form-label fw-bold text-secondary small">Acréscimo (R$)</label>
+                            <div class="input-group">
+                                <span class="input-group-text bg-white text-success border border-success border-end-0">
+                                    <i class="bi bi-plus-lg"></i>
+                                </span>
+                                <input type="number" id="acrescimo" class="form-control border-start-0 border-success text-success fw-bold" 
+                                    step="0.01" value="0.00" oninput="calcularTotais()">
+                            </div>
                         </div>
                     </div>
                     <div class="mt-4">
@@ -93,8 +117,8 @@
                 <i class="bi bi-check-lg fs-4"></i>
                 <span>CONFIRMAR PAGAMENTO</span>
             </button>
-            <a href="{% url 'frente_caixa' %}" class="btn btn-outline-danger border-0">
-                Cancelar e Voltar
+            <a href="{% url 'frente_caixa' venda.id %}" class="btn btn-outline-secondary btn-lg">
+                <i class="bi bi-arrow-left me-2"></i>Voltar ao Caixa
             </a>
         </div>
     </div>
@@ -117,7 +141,7 @@
                         <span>Imprimir Cupom</span>
                     </button>
                     
-                    <a href="{% url 'frente_caixa' %}" class="btn btn-outline-primary btn-lg d-flex align-items-center justify-content-center gap-2">
+                    <a href="{% url 'home_pdv' %}" class="btn btn-outline-primary btn-lg d-flex align-items-center justify-content-center gap-2">
                         <i class="bi bi-cart-plus fs-5"></i>
                         <span>Nova Venda</span>
                     </a>
@@ -131,85 +155,130 @@
 
 {% block scripts %}
 <script>
-    // Valor inicial vindo do Django
     const subtotal = parseFloat("{{ venda.valor_total|stringformat:'.2f' }}".replace(',', '.'));
 
-    // 1. Calcula Descontos e Acréscimos
+    // --- LÓGICA DE SINCRONIZAÇÃO DE DESCONTO ---
+
+    // 1. Digitou no R$ -> Calcula a %
+    function aoMudarDescontoDinheiro() {
+        const valDesconto = parseFloat(document.getElementById('desconto').value) || 0;
+        
+        if (subtotal > 0) {
+            // Regra de 3: (Valor / Total) * 100
+            const novaPorcentagem = (valDesconto / subtotal) * 100;
+            document.getElementById('desconto_percent').value = novaPorcentagem.toFixed(2);
+        }
+        calcularTotais();
+    }
+
+    // 2. Digitou na % -> Calcula o R$
+    function aoMudarDescontoPorcento() {
+        const valPorcento = parseFloat(document.getElementById('desconto_percent').value) || 0;
+        
+        // Conta: Total * (Porcentagem / 100)
+        const novoValor = subtotal * (valPorcento / 100);
+        document.getElementById('desconto').value = novoValor.toFixed(2);
+        
+        calcularTotais();
+    }
+
+    // --- CÁLCULOS GERAIS ---
+
     function calcularTotais() {
         const desc = parseFloat(document.getElementById('desconto').value) || 0;
         const acre = parseFloat(document.getElementById('acrescimo').value) || 0;
         
         const total = subtotal - desc + acre;
         
-        // Atualiza Labels
+        // Atualiza os textos na tela
         document.getElementById('lbl-desconto').innerText = desc.toFixed(2);
         document.getElementById('lbl-acrescimo').innerText = acre.toFixed(2);
         document.getElementById('lbl-total').innerText = total.toFixed(2);
         
-        // Recalcula o troco automaticamente se o total mudar
         calcularTroco();
     }
 
-    // 2. Calcula o Troco (NOVO)
     function calcularTroco() {
         const totalFinal = parseFloat(document.getElementById('lbl-total').innerText);
         const recebido = parseFloat(document.getElementById('valor_recebido').value) || 0;
-        
-        // Pega o elemento PAI que contém o "R$" e o span do valor
         const containerTroco = document.getElementById('lbl-troco').parentElement;
         
         if (recebido === 0) {
-            // Se não digitou nada, volta ao padrão azul
             containerTroco.className = "h3 mb-0 fw-bold text-primary";
             containerTroco.innerHTML = 'R$ <span id="lbl-troco">0.00</span>';
             return;
         }
 
         if (recebido >= totalFinal) {
-            // Se pagou tudo (Troco)
             let troco = recebido - totalFinal;
-            containerTroco.className = "h3 mb-0 fw-bold text-primary";
-            containerTroco.innerHTML = 'R$ <span id="lbl-troco">' + troco.toFixed(2) + '</span>';
+            containerTroco.className = "h3 mb-0 fw-bold text-success";
+            containerTroco.innerHTML = 'Troco: R$ <span id="lbl-troco">' + troco.toFixed(2) + '</span>';
         } else {
-            // Se falta dinheiro
             let falta = totalFinal - recebido;
             containerTroco.className = "h3 mb-0 fw-bold text-danger";
-            containerTroco.innerHTML = '-R$ <span id="lbl-troco">' + falta.toFixed(2) + '</span>';
+            containerTroco.innerHTML = 'Falta: R$ <span id="lbl-troco">' + falta.toFixed(2) + '</span>';
         }
     }
 
-    // 3. Confirmar Venda (Mantivemos igual)
+    // --- FUNÇÃO PRINCIPAL DE FINALIZAÇÃO ---
     async function confirmarVenda() {
-        const formaPagamento = document.getElementById('forma_pagamento').value;
-        const desconto = parseFloat(document.getElementById('desconto').value) || 0;
-        const acrescimo = parseFloat(document.getElementById('acrescimo').value) || 0;
-        const valorFinal = parseFloat(document.getElementById('lbl-total').innerText);
+        const pgto = document.getElementById('forma_pagamento').value;
+        const desc = parseFloat(document.getElementById('desconto').value) || 0;
+        const acre = parseFloat(document.getElementById('acrescimo').value) || 0;
+        const final = parseFloat(document.getElementById('lbl-total').innerText);
+        
+        // Valor Recebido
+        const recebido = parseFloat(document.getElementById('valor_recebido').value) || 0;
 
-        const response = await fetch("/api/concluir-venda/{{ venda.id }}/", {
+        // --- VALIDAÇÃO (SEGURANÇA DO CAIXA) ---
+        
+        // 1. Verifica se digitou algo
+        if (recebido <= 0 || isNaN(recebido)) {
+            alert("ATENÇÃO:\nVocê precisa informar o valor recebido do cliente!");
+            document.getElementById('valor_recebido').focus();
+            return;
+        }
+
+        // 2. Verifica se o valor paga a conta
+        // Usamos (final - 0.01) para evitar bugs de arredondamento (ex: 99.9999 < 100)
+        if (recebido < (final - 0.01)) {
+            let falta = (final - recebido).toFixed(2);
+            alert(`VALOR INSUFICIENTE!\n\nFaltam R$ ${falta} para fechar a conta.\nO sistema não permite finalizar com valor menor.`);
+            document.getElementById('valor_recebido').focus();
+            return;
+        }
+
+        // --- ENVIO PARA O SERVIDOR ---
+        const res = await fetch("/api/concluir-venda/{{ venda.id }}/", {
             method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({
-                forma_pagamento: formaPagamento,
-                desconto: desconto,
-                acrescimo: acrescimo,
-                valor_final: valorFinal
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': '{{ csrf_token }}'
+            },
+            body: JSON.stringify({ 
+                forma_pagamento: pgto, 
+                desconto: desc, 
+                acrescimo: acre, 
+                valor_final: final,
+                valor_recebido: recebido
             })
         });
 
-        const json = await response.json();
+        const json = await res.json();
         
         if (json.status === 'sucesso') {
-            if (json.aviso) alert("⚠️ ATENÇÃO:\n" + json.aviso);
+            if (json.aviso) alert("ATENÇÃO:\n" + json.aviso);
+            
+            // Abre o modal de sucesso
             new bootstrap.Modal(document.getElementById('modalSucesso')).show();
         } else {
-            alert("Erro: " + json.mensagem);
+            alert("Erro ao finalizar: " + json.mensagem);
         }
     }
     
-    // Atalho para abrir cupom
     function abrirCupom() {
         const url = "{% url 'imprimir_cupom' venda.id %}";
-        window.open(url, "Cupom", "width=400,height=600");
+        window.open(url, "Cupom", "width=400,height=600,scrollbars=yes,status=no,location=no");
     }
 </script>
 {% endblock %}

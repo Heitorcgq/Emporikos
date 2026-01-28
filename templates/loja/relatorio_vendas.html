@@ -10,39 +10,52 @@
                 <i class="bi bi-pie-chart-fill me-1"></i> Ver Gráficos
             </a>
             
-            <a href="{% url 'frente_caixa' %}" class="btn btn-primary w-10">
+            <a href="{% url 'home_pdv' %}" class="btn btn-primary w-10">
                 <i class="bi bi-arrow-left"></i> Voltar
             </a>
         </div>
     </div>
 
     <div class="panel mb-4">
-        <form method="get" class="row g-3 align-items-end">
-            <div class="col-md-3">
-                <label class="form-label text-secondary fw-bold">Data Início</label>
+        <form method="get" class="row g-2 align-items-end">
+            
+            <div class="col-md-2">
+                <label class="form-label fw-bold text-secondary small">ID Venda</label>
+                <div class="input-group">
+                    <span class="input-group-text bg-light text-secondary border px-2"><i class="bi bi-hashtag"></i></span>
+                    <input type="number" name="venda_id" class="form-control" placeholder="Ex: 91" value="{{ venda_id_busca|default:'' }}">
+                </div>
+            </div>
+
+            <div class="col-md-2">
+                <label class="form-label fw-bold text-secondary small">Data Início</label>
                 <input type="date" name="data_inicio" class="form-control" value="{{ data_inicio }}">
             </div>
-            <div class="col-md-3">
-                <label class="form-label text-secondary fw-bold">Data Fim</label>
+            
+            <div class="col-md-2">
+                <label class="form-label fw-bold text-secondary small">Data Fim</label>
                 <input type="date" name="data_fim" class="form-control" value="{{ data_fim }}">
             </div>
-            <div class="col-md-2">
-                <button type="submit" class="btn btn-primary w-100">
-                    <i class="bi bi-filter"></i> Filtrar
-                </button>
+
+            <div class="col-md-3">
+                <label class="form-label fw-bold text-secondary small">Vendedor</label>
+                <select name="vendedor" class="form-select">
+                    <option value="">Todos</option>
+                    {% for f in funcionarios %}
+                        <option value="{{ f.id }}" {% if vendedor_selecionado == f.id %}selected{% endif %}>
+                            {{ f.username|title }}
+                        </option>
+                    {% endfor %}
+                </select>
             </div>
-            
-            <div class="col-md-4">
-                <div class="d-flex gap-3 justify-content-end">
-                    <div class="text-end border-end pe-3">
-                        <small class="text-secondary text-uppercase" style="font-size: 0.75rem;">Pedidos</small>
-                        <div class="h4 mb-0 fw-bold">{{ total_pedidos }}</div>
-                    </div>
-                    <div class="text-end">
-                        <small class="text-secondary text-uppercase" style="font-size: 0.75rem;">Faturamento</small>
-                        <div class="h4 mb-0 fw-bold text-success">R$ {{ total_faturamento|floatformat:2 }}</div>
-                    </div>
-                </div>
+
+            <div class="col-md-3 d-flex gap-2">
+                <button type="submit" class="btn btn-primary flex-grow-1" title="Filtrar Resultados">
+                    <i class="bi bi-search me-2"></i>Filtrar
+                </button>
+                <a href="{% url 'relatorio_vendas' %}" class="btn btn-outline-secondary" title="Limpar Filtros">
+                    <i class="bi bi-x-lg"></i>
+                </a>
             </div>
         </form>
     </div>
@@ -52,39 +65,50 @@
             <table class="table table-hover align-middle mb-0">
                 <thead class="table-light">
                     <tr>
-                        <th class="ps-4">#ID</th>
-                        <th>Data / Hora</th>
-                        <th>Vendedor</th>
-                        <th>Itens</th>
-                        <th class="text-end pe-4">Total</th>
+                        <th class="ps-4">ID</th>
+                        <th>Data</th>
+                        <th>Vendedor</th> 
+                        <th>Pagamento</th>
+                        <th class="text-end">Total</th>
+                        <th class="text-end pe-4">Ações</th>
                     </tr>
                 </thead>
                 <tbody>
-                    {% for venda in vendas %}
+                    {% for v in vendas %}
                     <tr>
-                        <td class="ps-4 fw-bold text-muted">#{{ venda.id }}</td>
-                        <td>{{ venda.data_venda|date:"d/m/Y" }}</td>
+                        <td class="ps-4 fw-bold text-secondary">#{{ v.id }}</td>
+                        <td>
+                            <div>{{ v.data_venda|date:"d/m/Y" }}</div>
+                            <small class="text-muted">{{ v.data_venda|date:"H:i" }}</small>
+                        </td>
+                        
                         <td>
                             <span class="badge bg-light text-dark border">
-                                <i class="bi bi-person-circle me-1"></i> {{ venda.vendedor.username|default:"Caixa" }}
+                                <i class="bi bi-person-fill me-1"></i> {{ v.vendedor.username|title }}
                             </span>
                         </td>
+
                         <td>
-                            <small class="text-muted">
-                                {% for item in venda.itensvenda_set.all %}
-                                    {{ item.quantidade }}x {{ item.produto.nome }}{% if not forloop.last %}, {% endif %}
-                                {% empty %}
-                                    Sem itens registrados
-                                {% endfor %}
-                            </small>
+                            {% if v.forma_pagamento == 'PIX' %}
+                                <span class="badge bg-success bg-opacity-10 text-success">PIX</span>
+                            {% elif v.forma_pagamento == 'DIN' %}
+                                <span class="badge bg-success bg-opacity-10 text-success">Dinheiro</span>
+                            {% else %}
+                                <span class="badge bg-primary bg-opacity-10 text-primary">{{ v.get_forma_pagamento_display }}</span>
+                            {% endif %}
                         </td>
-                        <td class="text-end pe-4 fw-bold text-primary">R$ {{ venda.valor_total|floatformat:2 }}</td>
+                        <td class="text-end fw-bold">R$ {{ v.valor_final|floatformat:2 }}</td>
+                        
+                        <td class="text-end pe-4">
+                            <button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#modalVenda{{ v.id }}" title="Ver Itens">
+                                <i class="bi bi-eye"></i>
+                            </button>
+                        </td>
                     </tr>
                     {% empty %}
                     <tr>
-                        <td colspan="5" class="text-center py-5 text-muted">
-                            <i class="bi bi-calendar-x h1 d-block mb-2"></i>
-                            Nenhuma venda encontrada neste período.
+                        <td colspan="6" class="text-center py-5 text-muted">
+                            Nenhuma venda encontrada.
                         </td>
                     </tr>
                     {% endfor %}
@@ -93,4 +117,94 @@
         </div>
     </div>
 </div>
+
+{% for v in vendas %}
+<div class="modal fade" id="modalVenda{{ v.id }}" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content shadow-lg border-0">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title fw-bold">
+                    <i class="bi bi-receipt me-2"></i>Detalhes da Venda #{{ v.id }}
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            
+            <div class="modal-body p-0">
+                <table class="table table-striped mb-0">
+                    <thead class="bg-light">
+                        <tr>
+                            <th class="ps-4 py-3">Produto</th>
+                            <th class="text-center py-3">Qtd</th>
+                            <th class="text-end pe-4 py-3">Subtotal</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in v.itensvenda_set.all %}
+                        <tr>
+                            <td class="ps-4">
+                                <div class="fw-bold">{{ item.produto.nome }}</div>
+                                <small class="text-muted">{{ item.produto.codigo }}</small>
+                            </td>
+                            <td class="text-center align-middle">
+                                {% if item.produto.tipo_venda == 'FR' %}
+                                    {{ item.quantidade }}
+                                {% else %}
+                                    {{ item.quantidade|floatformat:0 }}
+                                {% endif %}
+                            </td>
+                            <td class="text-end pe-4 align-middle">R$ {{ item.subtotal|floatformat:2 }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                    <tfoot class="bg-light border-top">
+                        <tr>
+                            <td colspan="2" class="text-end text-secondary py-1">Subtotal:</td>
+                            <td class="text-end text-secondary pe-4 py-1">R$ {{ v.valor_total|floatformat:2 }}</td>
+                        </tr>
+
+                        {% if v.desconto > 0 %}
+                        <tr>
+                            <td colspan="2" class="text-end text-danger py-1">Desconto:</td>
+                            <td class="text-end text-danger pe-4 py-1">- R$ {{ v.desconto|floatformat:2 }}</td>
+                        </tr>
+                        {% endif %}
+
+                        {% if v.acrescimo > 0 %}
+                        <tr>
+                            <td colspan="2" class="text-end text-success py-1">Acréscimo:</td>
+                            <td class="text-end text-success pe-4 py-1">+ R$ {{ v.acrescimo|floatformat:2 }}</td>
+                        </tr>
+                        {% endif %}
+                        
+
+                        <tr class="border-top">
+                            <td colspan="2" class="text-end fw-bold py-3">TOTAL FINAL:</td>
+                            <td class="text-end fw-bold pe-4 py-3 fs-5 text-primary">R$ {{ v.valor_final|floatformat:2 }}</td>
+                        </tr>
+
+                        {% if v.forma_pagamento == 'DIN' and v.valor_recebido > 0 %}
+                        <tr>
+                            <td colspan="2" class="text-end text-secondary small py-1">Valor Recebido:</td>
+                            <td class="text-end text-secondary small pe-4 py-1">R$ {{ v.valor_recebido|floatformat:2 }}</td>
+                        </tr>
+                        <tr>
+                            <td colspan="2" class="text-end fw-bold text-success py-2">TROCO:</td>
+                            <td class="text-end fw-bold text-success pe-4 py-2">R$ {{ v.troco|floatformat:2 }}</td>
+                        </tr>
+                        {% endif %}
+                    </tfoot>
+                </table>
+            </div>
+
+            <div class="modal-footer bg-light d-flex justify-content-between">
+                <small class="text-muted">Vendedor: <strong>{{ v.vendedor.username|title }}</strong></small>
+                <a href="{% url 'imprimir_cupom' v.id %}" target="_blank" class="btn btn-dark">
+                    <i class="bi bi-printer-fill me-2"></i> Reimprimir Cupom
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endfor %}
+
 {% endblock %}

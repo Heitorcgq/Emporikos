@@ -1,0 +1,79 @@
+{% extends "core/base.html" %}
+
+{% block title %}Editar Funcionário | Emporikos{% endblock %}
+
+{% block content %}
+<div class="container d-flex justify-content-center">
+    <div class="col-md-8 col-lg-6">
+        
+        <div class="d-flex align-items-center mb-4">
+            <a href="{% url 'catalogo_funcionarios' %}" class="btn btn-light rounded-circle shadow-sm me-3" title="Voltar">
+                <i class="bi bi-arrow-left text-primary"></i>
+            </a>
+            <div>
+                <h4 class="fw-bold text-primary mb-0">Editar Funcionário</h4>
+                <div class="text-muted small">Atualize os dados de acesso</div>
+            </div>
+        </div>
+
+        <div class="panel shadow-sm border-0 p-4">
+            <form method="post">
+                {% csrf_token %}
+                
+                <h6 class="text-uppercase text-secondary fw-bold small mb-3 border-bottom pb-2">Dados Pessoais</h6>
+                
+                <div class="mb-3">
+                    <label class="form-label fw-bold text-secondary small">Nome Completo</label>
+                    {{ form.nome_completo }}
+                </div>
+
+                <div class="mb-4">
+                    <label class="form-label fw-bold text-secondary small">Email</label>
+                    {{ form.email }}
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-bold text-secondary small">Telefone</label>
+                    {{ form.telefone }}
+                </div>
+                <h6 class="text-uppercase text-secondary fw-bold small mb-3 border-bottom pb-2 mt-4">Acesso e Segurança</h6>
+
+                <div class="row g-3 mb-3">
+                    <div class="col-md-6">
+                        <label class="form-label fw-bold text-secondary small">Usuário (Login)</label>
+                        {{ form.username }}
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label fw-bold text-secondary small">Cargo / Permissão</label>
+                        {{ form.cargo }}
+                    </div>
+                </div>
+
+                <div class="mb-4">
+                    <label class="form-label fw-bold text-secondary small">Nova Senha</label>
+                    {{ form.senha }}
+                    <div class="form-text text-muted small">
+                        <i class="bi bi-info-circle me-1"></i>Deixe em branco para manter a senha atual.
+                    </div>
+                </div>
+
+                <hr class="my-4 opacity-10">
+
+                <div class="d-flex justify-content-between align-items-center">
+                    
+                    <a href="{% url 'excluir_funcionario' funcionario.id %}" 
+                       class="btn btn-outline-danger border-0 d-flex align-items-center gap-2"
+                       onclick="return confirm('⚠️ ATENÇÃO: EXCLUSÃO DEFINITIVA\n\nTem certeza que deseja remover {{ funcionario.username }} do sistema?\nEssa ação não pode ser desfeita.');">
+                        <i class="bi bi-trash"></i> 
+                        <span class="d-none d-sm-inline">Excluir</span>
+                    </a>
+
+                    <button type="submit" class="btn btn-primary px-5 shadow-sm">
+                        <i class="bi bi-check-lg me-2"></i> Salvar Alterações
+                    </button>
+                </div>
+                
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

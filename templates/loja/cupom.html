@@ -4,81 +4,167 @@
     <meta charset="UTF-8">
     <title>Cupom #{{ venda.id }}</title>
     <style>
+        /* CONFIGURAÇÕES GERAIS DE IMPRESSÃO */
         @page { margin: 0; size: auto; }
+        
         body {
-            font-family: 'Courier New', Courier, monospace;
+            margin: 0;
+            padding: 5px;
+            font-family: 'Courier New', Courier, monospace; /* Fonte estilo máquina de escrever */
             font-size: 12px;
-            margin: 5px;
-            width: 75mm; /* Largura para térmica 80mm */
             color: #000;
             background: #fff;
+            width: 72mm; /* Largura padrão 80mm com margem */
+            margin-left: auto;
+            margin-right: auto;
         }
+
+        /* UTILITÁRIOS */
         .text-center { text-align: center; }
         .text-end { text-align: right; }
         .fw-bold { font-weight: bold; }
-        .dashed-line { border-bottom: 1px dashed #000; margin: 5px 0; }
+        .uppercase { text-transform: uppercase; }
+        
+        /* SEPARADORES */
+        .divider {
+            border-bottom: 1px dashed #000;
+            margin: 8px 0;
+            width: 100%;
+        }
+        
+        .divider-solid {
+            border-bottom: 2px solid #000;
+            margin: 8px 0;
+            width: 100%;
+        }
+
+        /* TABELAS E LISTAS */
         table { width: 100%; border-collapse: collapse; }
         td { vertical-align: top; }
         
-        /* Esconde botões na impressão */
-        @media print { .no-print { display: none; } }
+        .item-row { margin-bottom: 5px; display: block; }
+        .item-name { font-weight: bold; display: block; }
+        .item-calc { font-size: 11px; display: flex; justify-content: space-between; }
+
+        /* BOTÃO DE IMPRIMIR (Só aparece na tela) */
+        @media print { 
+            .no-print { display: none; } 
+            body { width: 100%; } /* Garante uso total do papel */
+        }
+        
+        .btn-print {
+            background: #000; color: #fff; 
+            border: none; padding: 10px; width: 100%; 
+            cursor: pointer; font-weight: bold; margin-bottom: 15px;
+            text-transform: uppercase;
+        }
     </style>
 </head>
 <body>
 
-    <div class="text-center">
-        <div class="fw-bold" style="font-size: 14px;">EMPORIKOS SYSTEM</div>
-        <div>Rua Exemplo, 123 - Centro</div>
+    <div class="no-print">
+        <button onclick="window.print()" class="btn-print">🖨️ Imprimir Agora</button>
     </div>
 
-    <div class="dashed-line"></div>
+    <div class="text-center">
+        <div class="fw-bold" style="font-size: 16px;">EMPORIKOS SYSTEM</div>
+        <div style="font-size: 11px;">Sistema de Vendas e Gestão</div>
+        <div class="divider"></div>
+        <div>Rua Exemplo, 123 - Centro</div>
+        <div>CNPJ: 00.000.000/0001-00</div>
+    </div>
+
+    <div class="divider-solid"></div>
 
     <div>
-        Data: {{ venda.data_venda|date:"d/m/Y H:i" }}<br>
-        Venda Nº: <strong>{{ venda.id }}</strong>
+        VENDA: <span class="fw-bold">#{{ venda.id }}</span><br>
+        DATA: {{ venda.data_venda|date:"d/m/Y H:i" }}<br>
+        {% if venda.vendedor %}
+        VENDEDOR: {{ venda.vendedor.username|upper }}
+        {% endif %}
     </div>
 
-    <div class="dashed-line"></div>
+    <div class="divider-solid"></div>
 
-    <table>
-        {% for item in venda.itensvenda_set.all %}
+    <div style="font-size: 11px; margin-bottom: 5px;">ITEM / QTD x UNIT / TOTAL</div>
+    <div class="divider"></div>
+
+    {% for item in venda.itensvenda_set.all %}
+    <div class="item-row">
+        <div class="item-name">{{ item.produto.nome }}</div>
+        
+        <div class="item-calc">
+            <span>
+                {% if item.produto.tipo_venda == 'FR' %}
+                    {{ item.quantidade }}m
+                {% else %}
+                    {{ item.quantidade|floatformat:0 }}un
+                {% endif %}
+                 x R$ {{ item.preco_unitario|floatformat:2 }}
+            </span>
+            <span class="fw-bold">R$ {{ item.subtotal|floatformat:2 }}</span>
+        </div>
+    </div>
+    {% endfor %}
+
+    <div class="divider-solid"></div>
+
+    <table style="font-size: 13px;">
         <tr>
-            <td colspan="2">{{ item.produto.nome }}</td>
+            <td>SUBTOTAL</td>
+            <td class="text-end">R$ {{ venda.valor_total|floatformat:2 }}</td>
         </tr>
+        {% if venda.desconto > 0 %}
         <tr>
-            <td>{{ item.quantidade }} x R$ {{ item.preco_unitario|floatformat:2 }}</td>
-            <td class="text-end">R$ {{ item.subtotal|floatformat:2 }}</td>
+            <td>DESCONTO (-)</td>
+            <td class="text-end">R$ {{ venda.desconto|floatformat:2 }}</td>
         </tr>
-        {% endfor %}
+        {% endif %}
+        {% if venda.acrescimo > 0 %}
+        <tr>
+            <td>ACRÉSCIMO (+)</td>
+            <td class="text-end">R$ {{ venda.acrescimo|floatformat:2 }}</td>
+        </tr>
+        {% endif %}
     </table>
 
-    <div class="dashed-line"></div>
+    <div class="divider"></div>
 
-    <table>
-        <tr style="font-size: 14px;">
-            <td class="fw-bold">TOTAL:</td>
-            <td class="text-end fw-bold">R$ {{ venda.valor_final|floatformat:2 }}</td>
-        </tr>
-        <tr>
-            <td>Pagamento:</td>
-            <td class="text-end">{{ venda.get_forma_pagamento_display }}</td>
-        </tr>
-    </table>
+    <div style="display: flex; justify-content: space-between; align-items: center; font-size: 16px;">
+        <span class="fw-bold">TOTAL A PAGAR</span>
+        <span class="fw-bold">R$ {{ venda.valor_final|floatformat:2 }}</span>
+    </div>
+    <tr>
+        <td>TROCO</td>
+        <td class="text-end">R$ {{ venda.troco|floatformat:2 }}</td>
+    </tr>
 
-    <div class="text-center" style="margin-top: 20px;">
-        *** NÃO É DOCUMENTO FISCAL ***
+    <div class="divider-solid"></div>
+
+    <div class="text-center">
+        <div style="margin-bottom: 5px;">Forma Pagto: <strong>{{ venda.get_forma_pagamento_display|upper }}</strong></div>
+        <br>
+        <div style="font-size: 11px;">
+            OBRIGADO PELA PREFERÊNCIA!<br>
+            VOLTE SEMPRE.
+        </div>
+        <br>
+        <div style="font-size: 9px;">*** NÃO É DOCUMENTO FISCAL ***</div>
+        <div style="font-size: 9px;">Sistema Emporikos v1.0</div>
     </div>
 
     <script>
         window.onload = function() {
-            // Manda imprimir assim que carregar
-            window.print();
-            
-            // Tenta fechar a janela após um tempo (alguns navegadores bloqueiam o fechamento automático)
+            // Espera carregar e manda imprimir
             setTimeout(function() {
-                window.close();
-            }, 1000);
-        }
+                window.print();
+            }, 500);
+        };
+        
+        // Fecha a janela se o usuário cancelar ou terminar
+        window.onafterprint = function() {
+            window.close();
+        };
     </script>
 </body>
 </html>
