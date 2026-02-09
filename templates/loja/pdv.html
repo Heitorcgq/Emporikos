@@ -311,5 +311,12 @@
         }, 300);
     }
 
+    document.addEventListener('keydown', function(e) {
+    if (e.key === 'F2') {
+        e.preventDefault(); // Evita o comportamento padrão da tecla no navegador
+        irParaCheckout();   // Chama a função que já existe no seu código
+    }
+    });
+
 </script>
 {% endblock %}

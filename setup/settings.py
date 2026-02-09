@@ -89,6 +89,8 @@ DATABASES = {
     )
 }
 
+
+
 # --- SQLite - Muito mais leve ---
 #DATABASES = {
 #    'default': {
