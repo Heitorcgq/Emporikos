@@ -22,20 +22,24 @@ O **Emporikos** é uma solução completa de gestão empresarial que une a robus
    git clone [https://github.com/Heitorcgq/Emporikos.git](https://github.com/Heitorcgq/Emporikos.git)
 Instale as dependências:
 
-Bash
+   ```bash
 
-pip install -r requirements.txt
+   pip install -r requirements.txt
+
 Configure o banco de dados:
-
-Bash
+```
+```bash
 
 python manage.py migrate
-Crie o administrador e inicie o sistema:
 
-Bash
+Crie o administrador e inicie o sistema:
+```
+```Bash
 
 python create_admin.py
 python manage.py runserver
+
+```
 Desenvolvido por Heitorcgq
 
 
