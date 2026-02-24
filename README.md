@@ -26,14 +26,15 @@ Instale as dependências:
 
    pip install -r requirements.txt
 
-Configure o banco de dados:
 ```
+Configure o banco de dados:
+
 ```bash
 
 python manage.py migrate
 
-Crie o administrador e inicie o sistema:
 ```
+Crie o administrador e inicie o sistema:
 ```Bash
 
 python create_admin.py
